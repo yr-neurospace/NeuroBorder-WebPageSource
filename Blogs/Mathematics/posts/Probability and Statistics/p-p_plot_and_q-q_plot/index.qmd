@@ -1,0 +1,77 @@
+---
+title: "P-P plot and Q-Q plot"
+author: "Rui Yang"
+date: "2024-09-15"
+date-modified: last-modified
+categories: [p-p plot, q-q plot]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+
+jupyter: julia-1.10
+---
+
+## P-P plot
+
+In statistics, a **P-P plot** (**probability-probability plot** or **percent-percent plot** or **P value plot**) is a probability plot for assessing how closely two datasets agree, or for assessing how closely a dataset fits a particular model.
+
+It works by plotting the two cumulative distribution functions against each other; if they are similar, the data will appear to be nearly a straight line.
+
+A P-P plot plots two cumulative distribution functions (CDFs) against each other: given two probability distributions with CDFs *F* and *G*, it plots $(F(z), G(z))$ as $z$ ranges from $-\infty$ to $\infty$. As a CDF has range $[0, 1]$, the domain of this parametric graph is $(-\infty, \infty)$, and the range is the unit square $[0,1] \times [0,1]$.
+
+Thus for input $z$, the output is the pair of numbers giving what percentage of $F$ and what percentage of $G$ fall at or below $z$.
+
+## Q-Q plot
+
+In statistics, a **Q-Q plot** (**quantile-quantile plot**) is a probability plot, a graphical method for **comparing two probability distributions** by **plotting their quantiles against each other**. A point $(x, y)$ on the plot corresponds to one of the quantiles of the second distribution ($y$-coordinate) plotted against the same quantile of the first distribution ($x$-coordinate). This defines a parametric curve where the parameter is the index of the quantile interval.
+
+* If the two distributions being compared are similar, the points in the Q-Q plot will approximately lie on the identity line $y = x$.
+
+* If the distributions are linearly related, the points in the Q-Q plot will approximately lie on a line, but not necessarily on the line $y = x$.
+
+```{julia}
+using Random, Distributions, CairoMakie, StatsBase
+
+Random.seed!(1234)
+
+# assume that we have a sample of size n
+n = 10
+# observations are sampled from the standard normal distribution and i.i.d
+# this process is quite similar with the process
+# where we repeat an experiment n times and get n i.i.d observations
+# subjected to some unknown distribution
+dist = Normal()
+
+# we divide the standard normal distribution into n equal parts
+# which are denoted by their middle points
+# e.g. the k-th middle point is (k - 0.5) / n
+# this means that the probability of sampling any of the n middle points is 1/n in a single experiment
+# i.e. in a single experiment, we have the same chance to sample any of the n middle points
+middle_quantiles = [(k - 0.5) / n for k in 1:n]
+equal_intervals = [(quantile(dist, q - 0.5 / n), quantile(dist, q + 0.5 / n)) for q in middle_quantiles]
+
+N = 10^6
+d = Array{Float64}(undef, N)
+
+for i in 1:N
+    r = rand(dist, 1)
+    d[i] = middle_quantiles[@. (r > first(equal_intervals)) && (r < last(equal_intervals))][1]
+end
+middle_quantiles_count_dict = countmap(d)
+middle_quantiles_count = [middle_quantiles_count_dict[k] for k in middle_quantiles]
+middle_quantiles_count = middle_quantiles_count ./ sum(middle_quantiles_count)
+stem(middle_quantiles, middle_quantiles_count)
+```

@@ -1,0 +1,71 @@
+---
+title: "R resource list"
+author: "Rui Yang"
+date: "2024-09-22"
+date-modified: last-modified
+categories: [r, resource]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Get started
+
+1.  **Official documentations** at <https://cran.r-project.org/manuals.html>.
+
+2.  **Hands-on programming with R** by Garrett Grolemund at <https://rstudio-education.github.io/hopr>.
+
+3.  **Advanced R** by Hadley Wickham at <https://adv-r.hadley.nz/>.
+
+## Tidyverse series packages
+
+A collection of packages for **data science** at <https://github.com/tidyverse>.
+
+Including:
+
+-   I/O of delimited data: `vroom`, `readr`.
+
+-   Giving you a modern data frame: `tibble`.
+
+-   Data manipulation: `dplyr`.
+
+-   Giving you tidy data: `tidyr`.
+
+-   Working with strings: `stringr`.
+
+-   Working with factors: `forcats`.
+
+-   Working with functions and vectors: `purrr`.
+
+-   Working with dates and date-times: `lubridate`.
+
+-   Working with time-of-day values: `hms`.
+
+-   Working with binary data: `blob`.
+
+-   Working with pipes: `magrittr`.
+
+-   Formatting your strings: `glue`.
+
+-   Data visualization with 2D plot: `ggplot2` at <https://ggplot2-book.org>.
+
+## Bioconductor series packages
+
+A collection of packages for bioinfomatics at <https://bioconductor.org>.
+
+## Futureverse series packages
+
+A unifying parallelization framework at <https://www.futureverse.org/>.

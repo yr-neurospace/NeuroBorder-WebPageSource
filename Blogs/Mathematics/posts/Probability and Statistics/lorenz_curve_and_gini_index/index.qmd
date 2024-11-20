@@ -1,0 +1,152 @@
+---
+title: "Lorenz curve and Gini index"
+author: "Rui Yang"
+date: "2024-09-15"
+date-modified: last-modified
+categories: [lorenz curve, gini index]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+
+jupyter: julia-1.10
+---
+
+## Lorenz curve
+
+#### Introduction and explanation
+
+In economics, the **Lorenz curve** is a graphical representation of the distribution of income or of wealth.
+
+The curve is a graph showing **the proportion of overall income or wealth** assumed by **the bottom** $\mathbf{x\%}$ **of the people**. It is often used to represent income distribution, where it shows for the bottom $x\%$ of households, what percentage $y\%$ of the total income they have.
+
+![A typical Lorenz curve](./figures/a_lorenz_curve_scheme.png){.lightbox fig-alt="Click to see a larger version of the image" fig-align="center"}
+
+A perfectly equal income distribution would be in which everyone has the same income. In this case, the bottom $N\%$ of society would always have $N\%$ of the income. This can be depicted by the straight line $y = x$, called the "**line of perfect equality**".
+
+By contrast, a perfectly unequal distribution would be one in which one person has all the income and everyone else has none. In that case, the curve would be at $y = 0\%$ for all $x < 100\%$, and $y = 100\%$ when $x = 100\%$. This curve is called the "**line of perfect inequality**".
+
+#### Definition and calculation
+
+The Lorenz curve can usually be represented by a function $L(F)$, where $F$, the cumulative portion of the population, is represented by the horizontal axis, and $L$, the cumulative portion of the total wealth or income, is represented by the vertical axis.
+
+The curve $L$ need not be a smoothly increasing function of $F$. For wealth distributions there may be oligarchies or people with negative wealth for instance.
+
+1. Discrete distribution
+
+For a discrete distribution of $Y$ given by values $y_1, ..., y_n$ in **non-decresing** order ($y_i \le y_{i+1}$) and their probabilities $f(y_i) := Pr(Y = y_i)$, the Lorenz curve is a continuous piecewise linear function connecting the points $(F_i, L_i)$ for $i=1$ to $n$, where $F_0 = 0, L_0 = 0$.
+
+$$
+\begin{align}
+F_i &:= \sum_{j=1}^{i} f(y_j) \\
+S_i &:= \sum_{j=1}^{i} y_i f(y_i) \\
+S &:= \sum_{i=1}^{n} y_i f(y_i) \\
+L_i &:= \frac{S_i}{S}
+\end{align}
+$$
+
+2. Continuous distribution
+
+For a continuous distribution with the PDF $f$ and the CDF $F$, the Lorenz curve $L$ is given by
+
+$$
+L(F(x)) = \frac{\int_{-\infty}^{x} t f(t) dt}{\int_{-\infty}^\infty t f(t) dt} = \frac{\int_{-\infty}^{x} t f(t) dt}{\mu}
+$$
+
+where $\mu$ denotes the average.
+
+The Lorenz curve $L(F)$ may then be plotted as a function parametric in $x$: $L(x) \text{ vs. } F(x)$.
+
+## Gini index
+
+### Definition
+
+The Gini coefficient is the ratio of **the area between the line of perfect equality and the observed Lorenz curve** to **the area between the line of pefect equality and the line of perfect inequality**. The higher the coefficient, the more unequal the distribution. In the diagram above, this is given by the ratio $\frac{A}{A+B} = 2A = 1-2B$ due to the fact that $A + B = 0.5$.
+
+Assuming **non-negative** income or wealth for all, the Gini coefficient's theoretical range is from $0$ (total equality) to $1$ (absolute inequality).
+
+An alternative approach is to define the Gini coefficient as **half of the relative mean absolute difference**, which is equivalent to the definition based on the Lorenz curve. The mean absolute difference is the average absolute difference of all pairs of items of the population, and the relative mean absolute difference is the mean absolute difference divided by the average $\bar{x}$ to normalize for scale.
+
+If $x_i$ is the income or wealth of person $i$, and there are $n$ persons, then the Gini coefficient $G$ is given by
+
+$$
+G = \frac{\sum_{i=1}^{n}\sum_{j=1}^{n} |x_i - x_j|}{2n^2\bar{x}} = \frac{\sum_{i=1}^{n}\sum_{j=1}^{n} |x_i - x_j|}{2n \sum_{i=1}^{n} \bar{x}}
+$$
+
+When the wealth or income distribution is given as a continuous PDF $p(x)$, the Gini coefficient is again half of the relative mean absolute difference:
+
+$$
+G = \frac{1}{2\mu} \int_{-\infty}^{\infty}\int_{-\infty}^{\infty} p(x)p(y) |x-y| dxdy
+$$
+
+where $\mu = \int_{-\infty}^{\infty} xp(x) dx$ is the mean of the distribution, and the lower limits of integration may be replaced by zero when all incomes are positive.
+
+### Calculation
+
+If the values are first placed **in ascending order**, such that each $x$ has rank $i$, some of the comparisons above can be avoided and the computation can be quicker:
+
+$$
+\begin{align}
+G &= \frac{2}{n^2\bar{x}} \sum_{i=1}^{n} i(x_i - \bar{x}) \\
+G &= \frac{\sum_{i=1}^{n} (2i-n-1)x_i}{n \sum_{i=1}^{n} x_i}
+\end{align}
+$$
+
+where $x$ is an observed value, $n$ is the number of values observed and $i$ is the rank of values in ascending order.
+
+**Note that only positive non-zero values are used.**
+
+1. Julia code
+
+```{julia}
+using Random, Distributions
+
+Random.seed!(1234)
+
+@doc raw"""
+    gini(A::AbstractArray)
+
+Calculate the Gini coefficient of an array of numbers using the formula:
+
+``G = \frac{\sum_{i=1}^{n} (2i-n-1)x_i}{n \sum_{i=1}^{n} x_i}``
+"""
+function gini(A::AbstractArray)
+    A = vec(A)
+
+    # values cannot be negative
+    if minimum(A) < 0
+        A = A .- minimum(A)
+    end
+    # values cannot be 0
+    A = A .+ 1e-7
+
+    A = sort(A)
+    n = length(A)
+    index = collect(1:n)
+
+    sum(@. (2 * index - n - 1) * A) / (n * sum(A))
+end
+
+
+A = zeros(1000)
+A[1] = 1
+println(gini(A))
+
+B = ones(1000)
+println(gini(B))
+
+C = rand(Normal(0, 10), 1000)
+println(gini(C))
+```

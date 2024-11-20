@@ -1,0 +1,27 @@
+---
+title: "Trigonometric functions"
+author: "Rui Yang"
+date: "2024-09-15"
+date-modified: last-modified
+categories: [trigonometric functions]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+
+jupyter: julia-1.10
+---
+
+To be learned.

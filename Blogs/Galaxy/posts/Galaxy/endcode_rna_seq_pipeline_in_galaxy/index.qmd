@@ -1,0 +1,150 @@
+---
+title: "How to run ENCODE bulk RNA-seq pipeline in NeuroBorder Galaxy"
+author: "Rui Yang"
+date: "2024-11-20"
+date-modified: last-modified
+categories: [encode, bulk rna-seq, galaxy]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+NeuroBorder Galaxy platform is only responsible for performing analyses, not for visualizing results, which can be done by using [NeuroBorder Shiny App](https://github.com/yr-neurospace/NeuroBorder-ShinyWebApp) in part. For some of results, you can visualize them via R, Python, GraphPad Prism, etc. yourself.
+
+## Steps
+
+### Check MD5 sums of your raw FASTQ data in your computer
+
+For Windows users, I recommend using [git for windows](https://gitforwindows.org), which provides `md5sum` program equivalent to the Linux one. For Linux and Mac users, `md5sum` program has already been built into the system.
+
+Once you have installed it, you can right-click the mouse on your target directory and choose `Open Git Bash here`. This will open Git Bash terminal and set your target directory as the current working directory. Then you can use `ls` or `cd <target directory>` command to list files/directories in the current working directory or change the current working directory to your specified target directory. Change your current working directory using `cd` into the directory containing MD5 file such as `md5.txt` or `MD5.txt`, and then run the following code:
+
+```{bash}
+md5sum -c md5.txt > md5_check.txt
+```
+
+Now, once the program has been run successfully, you can view the file `md5_check.txt` to see whether all files are correct.
+
+### Copy your raw FASTQ data to a new directory and rename them
+
+Within your Git Bash, running the following code in the directory containing your raw FASTQ data needed to be analyzed:
+
+```{bash}
+find <raw data directory> -type f | grep -P ".+\.(fastq|fq)\.gz$" | xargs -I {} realpath {} | xargs -I {} cp {} <target directory>
+```
+
+In the above code, you should replace `<raw data directory>` with your directory containing your raw FASTQ data needed to be analyzed (you can use `.` to denote the current working directory), and replace `<target directory>` with your new directory into which all raw FASTQ data will be copied.
+
+After this step, rename your raw FASTQ files with the following specifications (**This is absolutely necessary!**):
+
+**Note: input FASTQ file names must strictly adhere to the following rules otherwise you will get unexpected outputs!**
+
+- Single-end: `ID_repN[_partN].(fastq|fq).gz`
+
+- Paired-end: `ID_repN[_partN].R(1|2).(fastq|fq).gz`
+
+Among them:
+
+- `ID` is the sample name, which can only contain `[a-zA-Z0-9]` and does **NOT** start with `[0-9]`.
+
+- `repN` means the `N`th biological replicate.
+
+- `partN` means the `N`th technical replicate. All technical replicates with the same `ID_repN` 
+should be merged into a single FASTQ file before running downstream analyses. This will be done 
+by ENCODE bulk RNA-seq pipeline before performing alignment and quantification.
+
+- `N` can only contain `[0-9]`.
+
+**Note: Even though you have only one biological replicate, `rep1` CANNOT be omitted. If you have only one technical replicate, `part1` CAN be omitted.**
+
+e.g.
+
+For paired-end samples: `Brain1_rep1.fastq.R1.gz`, `Brain1_rep1.fastq.R2.gz`, `Brain1_rep2_part1.R1.fq.gz`, `Brain1_rep2_part2.R1.fastq.gz`, `Brain1_rep2_part1.R2.fq.gz`, `Brain1_rep2_part2.R2.fastq.gz`.
+
+For single-end samples: `Cortex_rep1.fq.gz`, `Cortex_rep2_part1.fq.gz`, `Cortex_rep2_part2.fastq.gz`.
+
+Once renaming is done, generate MD5 sums again for your newly renamed raw FASTQ files by running the following code in the directory containing your newly renamed FASTQ files:
+
+```{bash}
+md5sum.exe *.fastq.gz > md5.txt
+```
+
+This will generate all MD5 sums of your newly renamed FASTQ files in file `md5.txt`.
+
+### Upload your raw FASTQ files and MD5 sums file to NeuroBorder Galaxy
+
+At present, the IP address of NeuroBorder Galaxy is an internal IP address `http://172.16.50.95`. This means that you cannot visit it outside. In addition, this IP is not permanent, which means it may be changed in the future. If you find it is invalid, please let me know. I will update it as I can.
+
+Once you have typed the IP address into your browser, you can upload data and perform various analyses within NeuroBorder Galaxy.
+
+For how to use some basic functionalities of NeuroBorder Galaxy, such as uploading data, managing history, etc., you can learn them from [the Galaxy Training](https://training.galaxyproject.org) or I can give you some demos in real time if necessary.
+
+At present, all tools used for ENCODE RNA-seq pipeline is under `Tools` $\to$ `NeuroBorder Tools`, in which you can choose the concrete tool for your purpose.
+
+Once you have uploaded your raw FASTQ files and MD5 sums file to NeuroBorder Galaxy, they will be shown in the right `History` panel (You can give each of your histories a meaningful name and delete them when you don't need them anymore. This is a good behavior for saving storage resource when available storage resource is inadequate.). Next, you should build your **raw FASTQ files** (note: not including the MD5 sums file) into a dataset list and give it a meaningful name.
+
+By now, you can run each of the following step one by one.
+
+### Run `MD5SUM`
+
+This step ensures that your raw FASTQ files are not malformed during uploading.
+
+In this step, you can check or generate (if `MD5 file` is not provided) MD5 sums of your files.
+
+### Run `FASTQC/MULTIQC` over raw FASTQ files
+
+Generate quality reports for your raw FASTQ files.
+
+### Run `Trim Galore`
+
+This step performs quality, adapter, and Ns trimmings of your sequencing reads, discard reads too short, and ensure that you only use sequencing reads with high quality for downstream analyses.
+
+### Run `FASTQC/MULTIQC` over trimmed FASTQ files
+
+Generate quality reports for your trimmed FASTQ files.
+
+### Run `ENCODE Bulk RNA-seq Pipeline`
+
+This step will run the ENCODE Bulk RNA-seq Pipeline and may take a long time from hours to days depending on your sample sizes.
+
+**Please make sure you have selected the right species (e.g. `mm10` if your data is obtained from mouse) for your data.**
+
+This step will generate some extremely large files, so you should download them with care. Once all files have been downloaded and unzipped, some files of them need to be uploaded again for performing downstream analyses. These files are mainly quantification files (with suffix such as `_anno_rsem.genes.results` or `_anno_rsem.isoforms.results`) generated by RSEM.
+
+As mentioned before, all uploaded files still need to be built into a dataset list with a name when feeded into the next tool.
+
+### Run `Extract RSEM Results`
+
+This step will extract some expression metrics and store them into some files from RSEM results.
+
+### Run `Bulk RNA-seq DE with DESeq2`
+
+This step will perform differential expression analysis over all comparison pairs.
+
+### Run `GO Enrichment Analysis`
+
+This step performs GO enrichment analysis over one or more gene sets.
+
+### Run `GSEA Analysis`
+
+This step performs GSEA analysis.
+
+### Epilogue
+
+To date, you have run all basic steps of bulk RNA-seq analysis. You can turn to visualize them or perform more adavnced analysis yourself.

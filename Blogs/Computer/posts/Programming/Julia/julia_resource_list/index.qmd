@@ -1,0 +1,37 @@
+---
+title: "Julia resource list"
+author: "Rui Yang"
+date: "2024-09-22"
+date-modified: last-modified
+categories: [julia, resource]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Get started
+
+1.  **Julia as a second language** by Erik Engheim.
+
+2.  **Julia language guide** by Dongfeng Li at <https://www.math.pku.edu.cn/teachers/lidf/docs/Julia/html/_book/index.html>.
+
+3.  **Julia official documentation** at <https://docs.julialang.org/en/v1>.
+
+## Julia for data science
+
+1.  **Julia language guide** by Dongfeng Li at <https://www.math.pku.edu.cn/teachers/lidf/docs/Julia/html/_book/index.html>.
+
+2.  **Julia data science** at <https://juliadatascience.io>.

@@ -1,0 +1,12 @@
+{
+  "hash": "529c0e61c2b5bf00eb5ced310694293b",
+  "result": {
+    "engine": "jupyter",
+    "markdown": "---\ntitle: \"Trigonometric functions\"\nauthor: \"Rui Yang\"\ndate: \"2024-09-15\"\ndate-modified: last-modified\ncategories: [trigonometric functions]\nformat:\n  html:\n    toc: true\n    toc-depth: 6\n    toc-location: left\n    fig-align: center\n    number-depth: 6\n    number-sections: true\n    fig-cap-location: bottom\n    fig-format: png\n    lightbox: true\n    tbl-cap-location: top\n    page-layout: full\n\nexecute:\n  warning: false\n\njupyter: julia-1.10\n---\n\n\nTo be learned.\n\n",
+    "supporting": [
+      "index_files"
+    ],
+    "filters": [],
+    "includes": {}
+  }
+}

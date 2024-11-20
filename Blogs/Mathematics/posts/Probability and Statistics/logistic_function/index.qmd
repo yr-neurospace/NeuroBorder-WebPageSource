@@ -1,0 +1,31 @@
+---
+title: "Logistic function"
+author: "Rui Yang"
+date: "2024-09-18"
+date-modified: last-modified
+categories: [logistic function]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Introduction
+
+```{=html}
+<object data="./pdfs/Logistic function.pdf" type="application/pdf" width="100%" height="100%" style="min-width:100vh;min-height:100vh;">
+  <p>It appears you don't have a PDF plugin for this browser. No biggie. You can click <a href="./pdfs/Logistic function.pdf">here</a> to download the PDF file.</p>
+</object>
+```

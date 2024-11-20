@@ -1,0 +1,99 @@
+---
+title: "Identify housekeeping genes"
+author: "Rui Yang"
+date: "2024-09-18"
+date-modified: last-modified
+categories: [bulk rna-seq, housekeeping genes]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Methods overview
+
+In brief, housekeeping genes are those with **higher expression levels**, **low variances**, and **ubiquitous expression profiles** across samples and species.
+
+In paper "What are housekeeping genes" by Chintan J. Joshi, housekeeping genes are defined as those with the following four properties:
+
+1. Higher expression stability
+
+2. Cellular maintenance
+
+3. Essentiality
+
+4. Conservation
+
+## Method 1
+
+From "A Comprehensive Mouse Transcriptomic BodyMap across 17 Tissues by RNA-seq" by Bin Li.
+
+**Criteria for identification of housekeeping genes:**
+
+1. Highly expressed in all biological samples ($FPKM > 1$);
+
+2. Low variance across tissues: `std(log2(FPKM)) < 1`;
+
+3. No logarithmic expression value differed from the averaged `log2(FPKM)` value by a factor of two (i.e. fourfold) or more.
+
+**Criteria for identification of reference genes:**
+
+1. $FPKM > 50$ across all biological samples;
+
+2. `std(log2(FPKM)) < 0.5` over tissues;
+
+3. No logarithmic expression value differed from the averaged `log2(FPKM)` value by a factor of one (i.e. twofold) or more.
+
+## Method 2
+
+From "Housekeeping protein‑coding genes interrogated with tissue and individual variations" by Kuo‑FengTung.
+
+**Gini coefficient of inequality (Gini index):**
+
+1. $TPM > 0.05$;
+
+2. $\text{Gini index} < 0.2$.
+
+## Method 3
+
+From "The evolution of gene expression levels in mammalian organs" by David Brawand.
+
+Pipeline used to pick housekeeping genes and normalize expression levels across species:
+
+1. Convert TPM to $log2(TPM+1)$;
+
+2. Retrieve and only keep one-to-one orthologous genes across all species with confidence equal to $1$ from Ensembl BioMart;
+
+3. Sort orthologs based on TPMs in **descending** order and represent each gene by its TPM rank in each sample;
+
+4. Calculate the *standard deviation* and *median* of each ortholog based on its ranks across samples;
+
+5. Keep orthologs the medians of which are within $0.25 \times \text{the number of orthologs} \sim 0.75 \times \text{the number of orthologs}$ (discarding those orthologs with expression levels extremely high or extremely low across samples);
+
+6. Retain the $1000$ orthologs with the lower variances (standard deviations);
+
+7. Calculate the medians of those $1000$ orthologs' TPMs in each sample;
+
+8. Calculate the scaling factor of each sample: `the scaling factor of sample A = TPM median of sample A / median(TPM median of all samples)`;
+
+9. For each sample, `scaled TPM = TPM / scaling factor`.
+
+Note: be aware of the fact that the expression difference of each same/homologous gene among species and the difference among batches are different.
+
+## Reference datasets
+
+**Human housekeeping genes:** <https://www.gsea-msigdb.org/gsea/msigdb/cards/HOUNKPE_HOUSEKEEPING_GENES.html>.
+
+**Mouse housekeeping genes:** <https://www.gsea-msigdb.org/gsea/msigdb/mouse/geneset/HOUNKPE_HOUSEKEEPING_GENES.html>.

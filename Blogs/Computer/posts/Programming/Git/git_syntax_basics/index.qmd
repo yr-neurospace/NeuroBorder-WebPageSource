@@ -1,0 +1,519 @@
+---
+title: "Git syntax basics"
+author: "Rui Yang"
+date: "2024-09-22"
+date-modified: last-modified
+categories: [git, syntax]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Git initial settings
+
+1.  Set the user name and email address
+
+```{bash}
+git config --global user.name "Rui Yang"
+git config --global user.email "neurospace@petalmail.com"
+```
+
+2.  Improve the output readability
+
+```{bash}
+git config --global color.ui auto
+```
+
+These settings will be stored in the file `~/.gitconfig` in the following form:
+
+```{bash}
+[user]
+        name = Rui Yang
+        email = neurospace@petalmail.com
+[color]
+        ui = auto
+```
+
+## GitHub initial settings
+
+1.  Set SSH key
+
+```{bash}
+# don't forget to enter passphrase
+ssh-keygen -t rsa -C "neurospace@petalmail.com"
+```
+
+This command will create two files `id_rsa` (private key), and `id_rsa.pub` (public key) under `~/.ssh`.
+
+2.  Add `id_rsa.pub` to GitHub
+
+3.  Validate your settings
+
+```{bash}
+ssh -T git@github.com
+```
+
+4.  Then you can use SSH key to clone and push a repository from and to GitHub
+
+```{bash}
+git clone git@github.com:yr-neurospace/YRUtils.jl.git
+```
+
+## Git operations
+
+### Basic operations
+
+1.  `git init` —— initialize a repository
+
+```{bash}
+# create a directory first
+mkdir git-tutorial
+cd git-tutorial
+# initialize a repository
+# this will create a .git directory in the curent working directory
+# it records all needed for managing this repository
+git init
+
+# 提示：使用 'master' 作为初始分支的名称。这个默认分支名称可能会更改。要在新仓库中
+# 提示：配置使用初始分支名，并消除这条警告，请执行：
+# 提示：
+# 提示：  git config --global init.defaultBranch <名称>
+# 提示：
+# 提示：除了 'master' 之外，通常选定的名字有 'main'、'trunk' 和 'development'。
+# 提示：可以通过以下命令重命名刚创建的分支：
+# 提示：
+# 提示：  git branch -m <name>
+# 已初始化空的 Git 仓库于 /home/yangrui/temp/git-tutorial/.git/
+```
+
+2.  `git status` —— check the status of a repository
+
+```{bash}
+git status
+
+# 位于分支 master
+
+# 尚无提交
+
+# 无文件要提交（创建/拷贝文件并使用 "git add" 建立跟踪）
+
+# we have not any files to be committed yet
+# let's create a README.md file for the first commit
+touch README.md
+git status
+
+# 位于分支 master
+
+# 尚无提交
+
+# 未跟踪的文件:
+#   （使用 "git add <文件>..." 以包含要提交的内容）
+#         README.md
+
+# 提交为空，但是存在尚未跟踪的文件（使用 "git add" 建立跟踪）
+```
+
+3.  `git add` —— add files to staging area
+
+```{bash}
+# when we create a file, it won't be managed automatically by git
+# we can see that README.md created above is listed as "Untracted files"
+# before adding README.md to our repository formally, we first need to add it to the staging area
+# which can be considered as a buffer area
+git add README.md
+git status
+
+# 位于分支 master
+
+# 尚无提交
+
+# 要提交的变更：
+#   （使用 "git rm --cached <文件>..." 以取消暂存）
+#         新文件：   README.md
+```
+
+4.  `git commit` —— add files in the staging area to our repository formally
+
+```{bash}
+# content after -m is a summary of the current commit
+# if you want to write more about the commit
+# you can run "git commit" without -m directly
+# this will open a text editor
+# and then you can enter more about the commit
+# by convention, the content you enter should be in the format:
+# line 1: a brief summary about the commit
+# line 2: blank line
+# line 3 and after: detailed info about the commit
+# note: if you want to abort the commit, don't enter any, and then close the editor directly
+git commit -m "First commit"
+
+# [master（根提交） 7f9f90e] First commit
+#  1 file changed, 0 insertions(+), 0 deletions(-)
+#  create mode 100644 README.md
+```
+
+4.  `git log` —— check commit log
+
+```{bash}
+# the string "7f9f90ef2c6d56862f096f3e0e288af5c3024097" by "commit" in the console output is a hash value
+# which can be used to locate this commit uniquely
+git log
+
+# commit 7f9f90ef2c6d56862f096f3e0e288af5c3024097 (HEAD -> master)
+# Author: Rui Yang <neurospace@petalmail.com>
+# Date:   Tue May 14 13:26:07 2024 +0800
+
+#     First commit
+
+# to show log in graph
+git log --graph
+
+# to show more concise info each commit
+git log --pretty=short
+
+# to show log associated with a specific dir or file
+git log README.md
+
+# to show modifications added by the last commit
+git log -p
+
+# to show modifications associated with a specific dir or file added by the last commit
+git log -p README.md
+```
+
+5.  `git diff` —— check modifications
+
+```{bash}
+# now let's add "# Git Guide" to the README.md
+# this modifies README.md in the working tree
+# the following command displays the difference between the working tree and the staging area
+# due to nothing existed in the staging area
+# it turns to display the difference between the working tree and the last commit
+git diff
+
+# diff --git a/README.md b/README.md
+# index e69de29..0a49ef6 100644
+# --- a/README.md
+# +++ b/README.md
+# @@ -0,0 +1 @@
+# +# Git Guide
+
+git add README.md
+
+# if you run "git diff" now, it will print nothing
+# because the status between the working tree and the staging area is of no diffrence
+# to check the difference between the working tree and the last commit
+# using
+git diff HEAD
+
+# diff --git a/README.md b/README.md
+# index e69de29..0a49ef6 100644
+# --- a/README.md
+# +++ b/README.md
+# @@ -0,0 +1 @@
+# +# Git Guide
+
+git commit -m "Add index"
+```
+
+### Operations on branches
+
+The master branch is created by Git by default.
+
+We can create multiple branches from the master branch or other branches.
+
+Each branch can be developed at the same time and is usually dedicated to a specific feature development (including fixing some bugs). Once the development of some branch is done, we can merge it with the master branch (in most cases).
+
+1.  `git branch` —— list all branches
+
+```{bash}
+# the active branch is indicated by an * beside the branch name
+git branch
+
+# * master
+```
+
+2.  `git checkout -b` —— create and switch to a new branch
+
+```{bash}
+# create and switch to the new branch feature-A from the master branch
+# if this is done
+# then all modifications take effect to the feature-A branch, not the master branch
+git checkout -b feature-A
+# the above command can also be achieved by combining the two
+git branch feature-A  # create
+git checkout feature-A  # switch to
+
+# 切换到一个新分支 'feature-A'
+
+git branch
+
+# * feature-A
+#   master
+
+# add a new line to README.md like
+# # Git Guide
+
+#   - feature-A
+
+git add README.md
+git commit -m "Add feature-A"
+```
+
+3.  `git merge` —— merge branches
+
+```{bash}
+# switch to the master branch
+git checkout master
+# merge feature-A to master
+# create a merge commit in all cases using --no-ff
+git merge --no-ff feature-A
+```
+
+### Modify commits
+
+1.  `git reset --hard` —— back to a specific status
+
+```{bash}
+# purpose:
+# back to the status before creating the feature-A branch
+# then create a new branch named fix-B
+# you need to provide the hash value of some commit, to which you want to back
+# you can query it using "git log"
+# because we want to back to the status before creating the feature-A branch
+# we back to the commit "Add index", which is the last commit before creating the feature-A branch
+git reset --hard e4fbb2140a7a25d8fa03a53bbf2129c5d8d56aaa
+
+# HEAD 现在位于 e4fbb21 Add index
+
+git checkout -b fix-B
+
+# add a new line to README.md like
+# # Git Guide
+
+#   - fix-B
+
+git add README.md
+git commit -m "Fix B"
+
+# forward to the status after merging feature-A
+# because "git log" can only query the history up to the current status
+# we use "git reflog" to query the repository log to retrieve the hash value we want
+git checkout master
+git reset --hard c61dab8
+
+# 切换到分支 'master'
+# HEAD 现在位于 c61dab8 Merge branch 'feature-A'
+
+# merge fix-B to master
+git merge --no-ff fix-B
+
+# 自动合并 README.md
+# 冲突（内容）：合并冲突于 README.md
+# 自动合并失败，修正冲突然后提交修正的结果。
+
+# this tells us that there is a conflict in README.md between feature-A and fix-B
+# now we need to open the README.md
+# then we will see the following
+
+# # Git Guide
+
+# <<<<<<< HEAD
+#   - feature-A
+# =======
+#   - fix-B
+# >>>>>>> fix-B
+
+# the content above ======= is the content in HEAD
+# below is the content in fix-B
+# now we modify it to what we want after merging manually
+
+# # Git Guide
+
+#   - feature-A
+#   - fix-B
+
+# now just add and commit it
+git add README.md
+git commit -m "Fix conflict"
+```
+
+2.  `git commit --amend` —— modify the last commit
+
+```{bash}
+# this will open a text editor
+# you can modify the last commit summary and then save and exit
+git commit --amend
+```
+
+3.  `git rebase -i` —— change/merge history
+
+```{bash}
+# create and switch to the branch feature-C
+git checkout -b feature-C
+
+# modify README.md like
+# which contains a small typo error
+# # Git Guide
+
+#   - feature-A
+#   - fix-B
+#   - faeture-C
+
+# -a option automatically stages modified and deleted files, not new files
+git commit -am "Add feature-C"
+
+# now fix the typo error
+# # Git Guide
+
+#   - feature-A
+#   - fix-B
+#   - feature-C
+
+git commit -am "Fix typo"
+
+# in fact, we almost don't expect such a commit to be recorded in our commit history at any time
+# so we hope to merge it into the last commit instead of creating a new commit for it
+# here we use "git rebase -i" to do this
+# HEAD~2 means that we pick the last two commits and open them in a text editor
+git rebase -i HEAD~2
+
+# replace "pick" with "fixup" in the line of "Fix typo"
+
+# 成功变基并更新 refs/heads/feature-C。
+
+# now we can see that the commit "Fix typo" is not existed in our log
+git log
+
+git checkout master
+git merge --no-ff feature-C
+```
+
+### Push to remote repository
+
+```{bash}
+# git@github.com:<account name>/<repository name>.git
+# add a remote repository for our local repository
+# Git will set "origin" as the name of the remote repository
+git remote add origin git@github.com:yr-neurospace/git-tutorial.git
+
+# push the content of the current branch to the master branch of the remote repository origin
+# when using -u option, it will set the master branch of the remote repository origin as the upstream of the local branch used now
+# this will let the local branch used now automatically pull content from the master branch of the remote repository origin when using "git pull" command without adding extra options
+git push -u origin master
+```
+
+### Pull from remote repository
+
+1.  `git clone` —— pull a remote repository
+
+```{bash}
+# by default, we are in the master branch
+# at the same time, Git will set origin as the identifier of the remote repository
+# in other words, the local master branch and the remote master branch are identical
+git clone git@github.com:yr-neurospace/git-tutorial.git
+
+# show branch info for both local and remote repositories
+git branch -a
+
+# create the feature-D branch in local
+# the content of which is from the feature-D branch of the remore origin repository
+git checkout -b feature-D origin/feature-D
+
+# pull the latest feature-D branch to local from the remote repository origin
+git pull origin feature-D
+```
+
+## Some GitHub functions
+
+### Issue
+
+The system managing Issue is called Bug Tracking System (BTS).
+
+In GitHub, you can use Issue to
+
+-   report BUG
+
+-   communicate among developers
+
+-   make to-do list
+
+In Issue, you can use the GitHub Flavored Markdown (GFM) syntax to organize your content. This will make your content clearer. Especially, you can use the Tasklist syntax to make a to-do list:
+
+```{GFM}
+# To do
+
+- [] add an attractive logo
+- [x] finish deployment
+- [] add sampling tool
+```
+
+Task marked by `[x]` is done.
+
+In addition, as we all have seen that every Issue has been assigned an unique number, say "#24". We can associate a commit to one or more commits by adding those Issue's numbers to our commit log, e.g. `Add feature #24`.
+
+We can also use this way to close an Issue by describing a commit in one of the following formats:
+
+```{GFM}
+fix #24
+fixes #24
+fixed #24
+
+close $24
+closes #24
+closed #24
+
+resolve #24
+resolves #24
+resolved #24
+```
+
+We may also convert an Issue to a Pull Request, because the numbers of Issue and Pull Request are interoperable.
+
+## Send Pull Request
+
+1.  Fork the repository you want to develop in GitHub.
+2.  Clone the forked repository to our local development environment using `git clone` command.
+3.  Create a feature branch from the target branch.
+
+Generally, we first create a feature branch and then develop new functions or fix some bugs in this feature branch.
+
+4.  Developing in the feature branch.
+5.  `add` and then `commit` our modifications.
+6.  Create the remote feature branch and then push the content of the local feature branch to it.
+
+e.g., `git push origin work` will create a remote feature branch called `work` and then push the local content to it.
+
+7.  Send Pull Request in GitHub (don't forget to switch to the feature branch).
+
+In addition, to keep up-to-date with the original repository, not the forked repository under our account, we can set the original repository as our "upstream" repository with the command `git remote add upstream <the original repository>`.
+
+Once set, we can fetch the latest source code from the original repository, and then merge it with the corresponding branch in our local repository, so we can perform development based the latest version.
+
+```{bash}
+git fetch upstream
+git merge upstream/master
+```
+
+## Accept Pull Request
+
+1.  Clone the remote repository accepting pull request to local.
+2.  Set the remote repository sending pull request as the remote repository of our cloned local repository with specific name e.g. "PRRepo", and then fetch it to local.
+3.  Now we have both the repository accepting pull request and the repository sending pull request. Next, we create a feature branch used to test merging from the repository accepting pull request. And then merge the pull request in the merging test branch. Once check passed, we can delete the merging test branch by using `git branch -D <merging test branch name>`.
+4.  Formally merge the pull request by one of the two methods:
+    -   Click `Merge pull request` in GitHub.
+
+    -   Merge pull request in the local and then push it to the remote.

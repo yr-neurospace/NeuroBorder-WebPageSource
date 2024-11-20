@@ -1,0 +1,16 @@
+[
+  {
+    "listing": "/index.html",
+    "items": [
+      "/posts/Probability and Statistics/probability_and_statistics_with_julia/index.html",
+      "/posts/Probability and Statistics/probability_and_statistics_misc/index.html",
+      "/posts/Probability and Statistics/statistical_inference_concepts_of_binomial_distribution/index.html",
+      "/posts/Probability and Statistics/logistic_function/index.html",
+      "/posts/Probability and Statistics/lorenz_curve_and_gini_index/index.html",
+      "/posts/Probability and Statistics/binomial_distribution_approximatrions/index.html",
+      "/posts/Probability and Statistics/trigonometric_functions/index.html",
+      "/posts/Probability and Statistics/p-p_plot_and_q-q_plot/index.html",
+      "/posts/Probability and Statistics/roc_and_auc/index.html"
+    ]
+  }
+]

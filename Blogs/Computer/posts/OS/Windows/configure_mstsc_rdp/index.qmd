@@ -1,0 +1,38 @@
+---
+title: "Configure mstsc RDP"
+author: "Rui Yang"
+date: "2024-10-07"
+date-modified: last-modified
+categories: [windows, mstsc, rdp]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Save user name and password in RDP file
+
+Once you have created a RDP file from `mstsc` or anywhere else, you can save your user name and password in your RDP file to achieve one-step login by adding or modifying the following two lines:
+
+```
+username:s:<type your user name here>
+password 51:b:<type your encrypted password here>
+```
+
+The encrypted password can be generated from your literal password in PowerShell by typing the command:
+
+```
+("<type your literal password here>" | ConvertTo-SecureString -AsPlainText -Force) | ConvertFrom-SecureString
+```

@@ -1,0 +1,114 @@
+---
+title: "ROC and AUC"
+author: "Rui Yang"
+date: "2024-09-15"
+date-modified: last-modified
+categories: [roc, auc]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+
+jupyter: julia-1.10
+---
+
+## Receiver operating characteristic (ROC)
+
+### Introduction
+
+A **receiver operating characteristic curve** (**ROC curve**) is a graphical plot that illustrates the performance of a binary classifier (two-class prediction) model at varying threshold values.
+
+The ROC curve is the plot of the **true positive rate** (TPR) against the **false positive rate** (FPR) at each threshold seeting.
+
+ROC analysis provides tools to select possibly optimal models and to discard suboptimal ones independently from the cost context or the class distribution. ROC analysis is related in a direct and natural way to the cost/benefit analysis of diagnostic decision making.
+
+A classification model (classifier or diagnosis) is a mapping of instances between certain classes/groups. Because the classifier or diagnosis result can be an arbitrary real value (continuous output), the classifier boundary between classes must be determined by a threshold value. Or it can be a discrete class label, indicating one of the classes.
+
+Consider an experiment from $\mathbf{P}$ positive instances and $\mathbf{N}$ negative instances for some condition. The four outcomes
+
+* True positive (TP): the outcome from a prediction is positve and the actual value is positive.
+
+* Flase positive (FP): the outcome from a prediction is positive but the actual value is negative.
+
+* True negative (TN): the outcome from a prediction is negative and the actual value is negative.
+
+* False negative (FN): the outcome from a prediction is negative but the actual value is positive.
+
+can be formulated in a $2 \times 2$ contingency table or confusion matrix, as follows:
+
+![](./figures/20240917-151245743_3c60d20b-7b99-49bb-931c-94f9d630d992.png){.lightbox fig-alt="Click to see a larger version of the image" fig-align="center"}
+
+### ROC space
+
+To draw a ROC curve, only TPR and FPR are needed (as functions of some classifier parameter).
+
+A ROC space is defined by FPR and TPR as $x$ and $y$ axes, respectively, which depicts relative trade-offs between true positive (benefits) and false positive (costs).
+
+The best possible prediction method would yield a point in the upper left corner or coordinate $(0, 1)$ of the ROC space, representing $100\%$ sensitivity (no false negatives) and $100\%$ specificity (no false positives). The $(0, 1)$ point is also called a perfect classification. A random guess would give a point along a diagonal line (the so-called line of no-discrimination) from the bottom left to the top right corners.
+
+The diagonal line divides the ROC space into two parts. Points above the diagonal line represent good clasification results (better than random); points below the line represent bad results (worse than random). Note that the output of a consistently bad predictor could simply be inverted to obtain a good predictor.
+
+### Curves in ROC space
+
+In binary classification, the class prediction for each instance is often made based on a continuous random variable $\mathbf{X}$, which is a "score" computed for the instance. Given a threshold $\mathbf{T}$, the instance is classified as "positive" if $\mathbf{X} > \mathbf{T}$, and "negative" otherwise. $\mathbf{X}$ follows a probability density $f_1(x)$ if the instance actually belongs to class "positive", and $f_0(x)$ if otherwise.
+
+Therefore, the true positive rate is given by $\mathbf{TPR(T)} = \int_{T}^{\infty} f_1(x) dx$ and the false positive rate is given by $\mathbf{FPR(T)} = \int_{T}^{\infty} f_0(x) dx$.
+
+The ROC curve plots parametrically $\mathbf{TPR(T)}$ versus $\mathbf{FPR(T)}$ with $\mathbf{T}$ as the varying parameter.
+
+In the hypothesis testing perspective, we can consider the power as TPR (the probability of correctly rejecting $H_0$), and the type I error as FPR (the probability of wrongly rejecting $H_0$), then the ROC curve is the power as a function of the type I error:
+
+```{julia}
+using Random, Distributions, CairoMakie
+
+Random.seed!(1234)
+
+# assume that under both H0 and H1
+# the random variable X is distributed as some normal distributions
+mu0, sigma0 = 10, 2
+mu1, sigma1 = 14, 1
+
+dist0 = Normal(mu0, sigma0)
+dist1 = Normal(mu1, sigma1)
+
+alphas = 0:0.01:1
+powers = @. ccdf(dist1, quantile(dist0, 1 - alphas))
+
+fig, ax = lines(alphas, powers; color=:red, label="ROC curve (power vs. alpha)")
+vlines!(ax, [0.05]; color=:black, label="alpha = 0.05")
+axislegend(ax; position=:rb)
+ax.xlabel = "Alpha"
+ax.ylabel = "Power"
+fig
+```
+
+As shown above, as the type I error grows up to $1$, the power also increases up to $1$. But we wish to reach a balance point where we have a larger power and an acceptable type I error rate (e.g. $0.05$).
+
+## Area under the curve (AUC)
+
+In addition to those evaluation metrics mentioned in the above table, another evaluation metric, called AUC (area under the ROC curve), defined as
+
+$$
+\begin{align}
+TPR(T)&: T \to y(x) \\
+FPR(T)&: T \to x \\
+A &= \int_{x = 0}^{1} TPR(FPR^{-1}(x)) dx \\
+&= \int_{\infty}^{-\infty} TPR(T) \cdot FPR'(T) dT
+\end{align}
+$$
+
+can be used to summarize sensitivity and specificity, but it does not inform regarding precision and negative predictive value.
+
+In fact, AUC is equal to the probability that a classifier will rank a randomly chosen positive instance higher than a randomly chosen negative one (assuming "positive" ranks higher than "negative"). In other words, when given one randomly selected positive instance and one randomly selected negative instance, AUC is the probability that the classifier will be able to tell which one is which.

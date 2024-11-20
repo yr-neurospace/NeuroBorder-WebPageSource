@@ -1,0 +1,49 @@
+---
+title: "Sticky notes"
+author: "Rui Yang"
+date: "2024-10-13"
+date-modified: last-modified
+categories: [misc, note]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Introduction
+
+**Note that the following IP addresses all are internal IP addresses, which means that they can only be accessible within the internal network!**
+
+## Rstudio server address
+
+`http://172.16.50.95:8787`.
+
+## Notes for deploying Galaxy with Ansible
+
+Galaxy server address: `http://172.16.50.95`.
+
+**References:**
+
+- [Galaxy Installation with Ansible](https://training.galaxyproject.org/training-material/topics/admin/tutorials/ansible-galaxy/tutorial.html).
+
+- [Ansible](https://training.galaxyproject.org/training-material/topics/admin/tutorials/ansible/tutorial.html).
+
+**Cautions:**
+
+- Before deploying Galaxy with Ansible in your server, make sure `2to3` is installed in your server. In Ubuntu, you can run `sudo apt install -y 2to3`.
+
+- Generally, after Galaxy has been deployed, it will be managed as a set of `systemd` services. But due to some unknown reason, Galaxy's `systemd` services are not added automatically, you can add it by running `sudo galaxyctl update` yourself, and then reboot if needed.
+
+- In production environment, Galaxy uses NGINX as its reverse proxy server, which is also managed by the `systemd` service. However, sometimes, if the NGINX server is started before the Galaxy server, the NGINX server will fail to start. In this case, you can try to set `Restart=always` and `RestartSec=120` in your NGINX server, this can make sure that the NGINX service will always try to restart after 120 seconds when the previous NGINX service failed to start. In principle, once the Galaxy service has been started, the NGINX can restart successfully after a few times of restarting attempts. Of course, you can restart the NGINX service yourself by running `sudo systemctl restart nginx`.

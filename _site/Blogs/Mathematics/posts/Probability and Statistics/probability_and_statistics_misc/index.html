@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.56">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Rui Yang">
+<meta name="dcterms.date" content="2024-09-22">
+
+<title>Probability and statistics (misc) – NeuroBorder</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../../">
+<script src="../../../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../../../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../../../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../../../../styles.css">
+</head>
+
+<body class="floating nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../../../index.html">
+    <span class="navbar-title">NeuroBorder</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-blogs" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Blogs</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-blogs">    
+        <li>
+    <a class="dropdown-item" href="../../../../../Blogs/Computer/index.html">
+ <span class="dropdown-text">Computer</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../../../../Blogs/Mathematics/index.html">
+ <span class="dropdown-text">Mathematics</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../../../../Blogs/Bioinformatics/index.html">
+ <span class="dropdown-text">Bioinformatics</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../../../../Blogs/Galaxy/index.html">
+ <span class="dropdown-text">Galaxy</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <a href="https://github.com/yr-neurospace/NeuroBorder" title="" class="quarto-navigation-tool px-1" aria-label=""><i class="bi bi-github"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default toc-left page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-page-right">
+      <h1 class="title">Probability and statistics (misc)</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">probability</div>
+                <div class="quarto-category">statistics</div>
+                <div class="quarto-category">misc</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta column-page-right">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Rui Yang </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">September 22, 2024</p>
+      </div>
+    </div>
+    
+      <div>
+      <div class="quarto-title-meta-heading">Modified</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date-modified">September 22, 2024</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#from-the-book-calculus-with-applications-by-peter-d.-lax" id="toc-from-the-book-calculus-with-applications-by-peter-d.-lax" class="nav-link active" data-scroll-target="#from-the-book-calculus-with-applications-by-peter-d.-lax"><span class="header-section-number">1</span> From the book <em>Calculus with applications</em> by <em>Peter D. Lax</em></a>
+  <ul>
+  <li><a href="#probability" id="toc-probability" class="nav-link" data-scroll-target="#probability"><span class="header-section-number">1.1</span> Probability</a>
+  <ul>
+  <li><a href="#discrete-probability" id="toc-discrete-probability" class="nav-link" data-scroll-target="#discrete-probability"><span class="header-section-number">1.1.1</span> Discrete probability</a>
+  <ul>
+  <li><a href="#the-probability-of-any-single-outcome" id="toc-the-probability-of-any-single-outcome" class="nav-link" data-scroll-target="#the-probability-of-any-single-outcome"><span class="header-section-number">1.1.1.1</span> The probability of any single outcome</a></li>
+  <li><a href="#the-probability-of-an-event" id="toc-the-probability-of-an-event" class="nav-link" data-scroll-target="#the-probability-of-an-event"><span class="header-section-number">1.1.1.2</span> The probability of an event</a>
+  <ul class="collapse">
+  <li><a href="#the-arithmetic-rules-of-probability-of-some-special-events" id="toc-the-arithmetic-rules-of-probability-of-some-special-events" class="nav-link" data-scroll-target="#the-arithmetic-rules-of-probability-of-some-special-events"><span class="header-section-number">1.1.1.2.1</span> The arithmetic rules of probability of some special events</a></li>
+  </ul></li>
+  <li><a href="#characteristics-of-random-variables" id="toc-characteristics-of-random-variables" class="nav-link" data-scroll-target="#characteristics-of-random-variables"><span class="header-section-number">1.1.1.3</span> Characteristics of random variables</a></li>
+  <li><a href="#some-special-distributions" id="toc-some-special-distributions" class="nav-link" data-scroll-target="#some-special-distributions"><span class="header-section-number">1.1.1.4</span> Some special distributions</a></li>
+  </ul></li>
+  <li><a href="#continuous-probability" id="toc-continuous-probability" class="nav-link" data-scroll-target="#continuous-probability"><span class="header-section-number">1.1.2</span> Continuous probability</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/yr-neurospace/NeuroBorder/edit/main/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/blob/main/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.qmd" class="toc-action"><i class="bi empty"></i>View source</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block column-page-right" id="quarto-document-content">
+
+
+
+
+
+<section id="from-the-book-calculus-with-applications-by-peter-d.-lax" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="from-the-book-calculus-with-applications-by-peter-d.-lax"><span class="header-section-number">1</span> From the book <em>Calculus with applications</em> by <em>Peter D. Lax</em></h2>
+<section id="probability" class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="probability"><span class="header-section-number">1.1</span> Probability</h3>
+<p>Probability is the branch of mathematics that deals with <strong>events</strong> whose <strong>individual outcomes</strong> are <strong>unpredictable</strong>, but whose outcomes <strong>on average</strong> are <strong>predictable</strong>.</p>
+<p>Experiments can be divided into two types:</p>
+<ul>
+<li><p><strong>Deterministic:</strong> whose individual outcomes are predictable;</p></li>
+<li><p><strong>Nondeterministic (random):</strong> whose individual outcomes are unpredictable.</p></li>
+</ul>
+<section id="discrete-probability" class="level4" data-number="1.1.1">
+<h4 data-number="1.1.1" class="anchored" data-anchor-id="discrete-probability"><span class="header-section-number">1.1.1</span> Discrete probability</h4>
+<p>Next, all experiments we’ll deal with are <em>repeatable</em> (it can be performed repeatedly any number of times) and <em>random</em> (any single performance of the experiment is unpredictable).</p>
+<p>In this section, we’ll deal with experiments having <em>a finite number of possible outcomes</em>. We denote the number of possible outcomes by <span class="math inline">\(n\)</span>, and number them from <span class="math inline">\(1\)</span> to <span class="math inline">\(n\)</span>.</p>
+<section id="the-probability-of-any-single-outcome" class="level5" data-number="1.1.1.1">
+<h5 data-number="1.1.1.1" class="anchored" data-anchor-id="the-probability-of-any-single-outcome"><span class="header-section-number">1.1.1.1</span> The probability of any single outcome</h5>
+<p>In a random and repeatable experiment, if we denote <span class="math inline">\(S_j\)</span> by <em>the number of instances</em> among the first <span class="math inline">\(N\)</span> experiments where the <span class="math inline">\(j\)</span>th outcome was observed to occur, then the frequency <span class="math inline">\(\frac{S_j}{N}\)</span> with which the <span class="math inline">\(j\)</span>th outcome has been observed to occur tends to a limit as <span class="math inline">\(N\)</span> tends to infinity. We call this limit the probability of the <span class="math inline">\(j\)</span>th outcome and denote it by <span class="math inline">\(p_j\)</span>:</p>
+<p><span class="math display">\[
+p_j = \lim\limits_{N \to \infty} \frac{S_j}{N}
+\]</span></p>
+<p>These probabilities have the following properties:</p>
+<ul>
+<li><span class="math inline">\(0 \leq p_j \leq 1\)</span>;</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For <span class="math inline">\(\frac{S_j}{N}\)</span> lies between <span class="math inline">\(0\)</span> and <span class="math inline">\(1\)</span>, and therefore so does its limit <span class="math inline">\(p_j\)</span>.</p>
+</div>
+</div>
+<ul>
+<li><span class="math inline">\(\sum_{j=1}^{n} p_j = 1\)</span>.</li>
+</ul>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>We have</p>
+<p><span class="math display">\[
+S_1 + S_2 + \cdots + S_n = N
+\]</span></p>
+<p>Dividing by <span class="math inline">\(N\)</span>, we get</p>
+<p><span class="math display">\[
+\frac{S_1}{N} + \frac{S_2}{N} + \cdots + \frac{S_n}{N} = 1
+\]</span></p>
+<p>As <span class="math inline">\(N\)</span> tends to infinity, we have</p>
+<p><span class="math display">\[
+\lim\limits_{N \to \infty} \sum_{j=1}^{n} \frac{S_j}{N} = \lim\limits_{N \to \infty} \sum_{j=1}^{n} p_j = 1
+\]</span></p>
+</div>
+</div>
+</section>
+<section id="the-probability-of-an-event" class="level5" data-number="1.1.1.2">
+<h5 data-number="1.1.1.2" class="anchored" data-anchor-id="the-probability-of-an-event"><span class="header-section-number">1.1.1.2</span> The probability of an event</h5>
+<p>In fact very often, we are not interested in all the details of the outcome of an experiment, but merely in a particular aspect of it (e.g.&nbsp;throwing a die, we may be interested only in whether the outcome is even or odd).</p>
+<p>An occurrence such as throwing an even number is called an <em>event</em>, which is defined as the following:</p>
+<blockquote class="blockquote">
+<p>An event <span class="math inline">\(E\)</span> is defined as <strong>any collection of possible outcomes</strong>.</p>
+</blockquote>
+<p><strong>Note:</strong> we say that an event <span class="math inline">\(E\)</span> occurred whenever any outcome belonging to <span class="math inline">\(E\)</span> occurred.</p>
+<p>The probability <span class="math inline">\(p(E)\)</span> of an event <span class="math inline">\(E\)</span> is</p>
+<p><span class="math display">\[
+p(E) = \lim\limits_{N \to \infty} \frac{S(E)}{N}
+\]</span></p>
+<p>where <span class="math inline">\(S(E)\)</span> is the number of instances among the first <span class="math inline">\(N\)</span> experiments when the event <span class="math inline">\(E\)</span> took place.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>We have</p>
+<p><span class="math display">\[
+S(E) = \sum_{j\ \text{in}\ E} S_j
+\]</span></p>
+<p>Dividing by <span class="math inline">\(N\)</span></p>
+<p><span class="math display">\[
+\frac{S(E)}{N} = \sum_{j\ \text{in}\ E} \frac{S_j}{N}
+\]</span></p>
+<p>As <span class="math inline">\(N\)</span> tends to infinity, we have</p>
+<p><span class="math display">\[
+p(E) = \sum_{j\ \text{in}\ E} p_j
+\]</span></p>
+</div>
+</div>
+<section id="the-arithmetic-rules-of-probability-of-some-special-events" class="level6" data-number="1.1.1.2.1">
+<h6 data-number="1.1.1.2.1" class="anchored" data-anchor-id="the-arithmetic-rules-of-probability-of-some-special-events"><span class="header-section-number">1.1.1.2.1</span> The arithmetic rules of probability of some special events</h6>
+<ol type="1">
+<li>Addition rule for disjoint events</li>
+</ol>
+<p>Two events <span class="math inline">\(E_1\)</span> and <span class="math inline">\(E_2\)</span> are called <em>disjoint</em> if both cannot take place simultaneously (i.e.&nbsp;<span class="math inline">\(E_1 \cap E_2 = \emptyset\)</span>).</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+p(E_1 \cup E_2) = p(E_1) + p(E_2)
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><span class="math display">\[
+p(E_1 \cup E_2) = \sum_{j\ \text{in}\ E_1\ \text{or}\ E_2} p_j
+\]</span></p>
+<p>Disjointness means that an outcome <span class="math inline">\(j\)</span> may belong either to <span class="math inline">\(E_1\)</span> or to <span class="math inline">\(E_2\)</span> <strong>but not to both</strong>; therefore,</p>
+<p><span class="math display">\[
+p(E_1 \cup E_2) = \sum_{j\ \text{in}\ E_1\ \text{or}\ E_2} p_j = \sum_{j\ \text{in}\ E_1} p_j + \sum_{j\ \text{in}\ E_2} p_j = p(E_1) + p(E_2)
+\]</span></p>
+</div>
+</div>
+<ol start="2" type="1">
+<li>Product rule for independent events</li>
+</ol>
+<p>Two events <span class="math inline">\(E\)</span> and <span class="math inline">\(F\)</span> are called <em>independent</em> if the outcome of one cannot influence the other, nor is the outcome of both under the influence of a common cause.</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+p(E \cap F) = p(E)p(F)
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Among the first <span class="math inline">\(N\)</span> experiments, count the number of times <span class="math inline">\(E\)</span> has occurred (<span class="math inline">\(S(E)\)</span>), F has occurred (<span class="math inline">\(S(F)\)</span>), and <span class="math inline">\(E \cap F\)</span> has occurred (<span class="math inline">\(S(E \cap F)\)</span>). Then we have</p>
+<p><span class="math display">\[
+p(E) = \lim\limits_{N \to \infty} \frac{S(E)}{N}
+\]</span></p>
+<p><span class="math display">\[
+p(F) = \lim\limits_{N \to \infty} \frac{S(F)}{N}
+\]</span></p>
+<p><span class="math display">\[
+p(E \cap F) = \lim\limits_{N \to \infty} \frac{S(E \cap F)}{N}
+\]</span></p>
+<p>Suppose that we single out from the sequence of combined experiments the subsequence of those where <span class="math inline">\(E\)</span> occurred. The frequency of occurrence of <span class="math inline">\(F\)</span> in this subsequence is <span class="math inline">\(\frac{S(E \cap F)}{S(E)}\)</span>. If the two events <span class="math inline">\(E\)</span> and <span class="math inline">\(F\)</span> are truly independent, the frequency with which <span class="math inline">\(F\)</span> occurs in this subsequence should be the same as the frequency with which <span class="math inline">\(F\)</span> occurs in the original sequence, i.e.</p>
+<p><span class="math display">\[
+\lim\limits_{N \to \infty} \frac{S(E \cap F)}{S(E)} = \lim\limits_{N \to \infty} \frac{S(F)}{N} = p(F)
+\]</span></p>
+<p>We write the frequency of <span class="math inline">\(\frac{S(E \cap F)}{N}\)</span> as the product</p>
+<p><span class="math display">\[
+\frac{S(E \cap F)}{N} = \frac{S(E \cap F)}{S(E)}\frac{S(E)}{N}
+\]</span></p>
+<p>Then we have</p>
+<p><span class="math display">\[
+p(E \cap F) = \lim\limits_{N \to \infty} \frac{S(E \cap F)}{N} = \lim\limits_{N \to \infty} \frac{S(E \cap F)}{S(E)} \cdot \lim\limits_{N \to \infty} \frac{S(E)}{N} = p(F)p(E)
+\]</span></p>
+</div>
+</div>
+</section>
+</section>
+<section id="characteristics-of-random-variables" class="level5" data-number="1.1.1.3">
+<h5 data-number="1.1.1.3" class="anchored" data-anchor-id="characteristics-of-random-variables"><span class="header-section-number">1.1.1.3</span> Characteristics of random variables</h5>
+<ol type="1">
+<li>Numerical outcome</li>
+</ol>
+<p>The numerical outcome of an experiment means the assignment of a real number <span class="math inline">\(x_j\)</span> to each of the possible outcomes.</p>
+<p>Note that different outcomes may be assigned the same number so we have to re-calculate the probability <span class="math inline">\(p(x_j)\)</span> for each <span class="math inline">\(x_j\)</span> with which <span class="math inline">\(x_j\)</span> occurred.</p>
+<ol start="2" type="1">
+<li>Expectation</li>
+</ol>
+<p>In a random experiment with <span class="math inline">\(n\)</span> possible outcomes of probability <span class="math inline">\(p_j\)</span> and numerical outcome <span class="math inline">\(x_j\)</span>, the average numerical outcome, called the mean of <span class="math inline">\(x\)</span> or expectation of <span class="math inline">\(x\)</span>, denoted by <span class="math inline">\(\bar{x}\)</span> or <span class="math inline">\(E(x)\)</span>, is given by the formula</p>
+<p><span class="math display">\[
+\bar{x} = E(x) = p_1x_1 + p_2x_2 + \cdots + p_nx_n
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Among the first <span class="math inline">\(N\)</span> experiments, denote by <span class="math inline">\(S_j\)</span> the number of instances with which the <span class="math inline">\(j\)</span>th outcome was observed. Then, the average numerical outcome is</p>
+<p><span class="math display">\[
+\frac{S_1x_1 + S_2x_2 + \cdots + S_nx_n}{N}
+\]</span></p>
+<p>As <span class="math inline">\(N \to \infty\)</span>, we have</p>
+<p><span class="math display">\[
+\bar{x} = E(x) = \lim\limits_{N \to \infty} \frac{S_1x_1 + S_2x_2 + \cdots + S_nx_n}{N} = p_1x_1 + p_2x_2 + \cdots + p_nx_n
+\]</span></p>
+</div>
+</div>
+<ol start="3" type="1">
+<li>Variance</li>
+</ol>
+<p>Next we are tempted to know such a fact: by how much do the numerical outcomes differ on average from the mean?</p>
+<p>This is characterized by the variance, the expectation of the square of the difference of the numerical outcome and its mean:</p>
+<p><span class="math display">\[
+V = \overline{(x - \bar{x})^2} = E((x - \bar{x})^2)
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><span class="math display">\[
+\begin{aligned}
+V &amp; = \overline{(x - \bar{x})^2} \\
+  &amp; = E((x - \bar{x})^2) \\
+  &amp; = \sum_{j=1}^{n} p_j (x_j - \bar{x})^2 \\
+  &amp; = p_1x_1^2 + \cdots + p_nx_n^2 - 2(p_1x_1 + \cdots + p_nx_n)\bar{x} + (\bar{x})^2 \\
+  &amp; = \bar{x^2} - (\bar{x})^2 \\
+  &amp; = E(x^2) - (E(x))^2
+\end{aligned}
+\]</span></p>
+</div>
+</div>
+<p><strong>Note:</strong> the square root of the variance <span class="math inline">\(\sqrt{V}\)</span> is called the standard deviation.</p>
+</section>
+<section id="some-special-distributions" class="level5" data-number="1.1.1.4">
+<h5 data-number="1.1.1.4" class="anchored" data-anchor-id="some-special-distributions"><span class="header-section-number">1.1.1.4</span> Some special distributions</h5>
+<ol type="1">
+<li>The binomial distribution</li>
+</ol>
+<p>Suppose a random experiment has two possible outcomes <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span>, with probabilities <span class="math inline">\(p\)</span> and <span class="math inline">\(q\)</span> respectively, where <span class="math inline">\(p + q = 1\)</span>.</p>
+<p>Suppose we repeat the experiment <span class="math inline">\(N\)</span> times, and the repeated experiments are independent of each other.</p>
+<p>If we let <span class="math inline">\(k\)</span> (<span class="math inline">\(k = 0, 1, ..., N\)</span>) denote the number of times with which A occurs, then the probability that A occurs exactly <span class="math inline">\(k\)</span> times is given by the formula</p>
+<p><span class="math display">\[
+b_k(N) = \dbinom{N}{k} p^k q^{N-k}
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Since the outcomes of the experiments are independent of each other, the probability of a particular sequence of <span class="math inline">\(k\)</span> <span class="math inline">\(A\)</span>’s and <span class="math inline">\(N - k\)</span> <span class="math inline">\(B\)</span>’s is <span class="math inline">\(p^k q^{N-k}\)</span>.</p>
+<p>In addition, there are exactly <span class="math inline">\(\dbinom{N}{k}\)</span> arrangements of <span class="math inline">\(k\)</span> <span class="math inline">\(A\)</span>’s and <span class="math inline">\(N - k\)</span> <span class="math inline">\(B\)</span>’s, which are disjoint of each other.</p>
+</div>
+</div>
+<p>In addition, we have</p>
+<p><span class="math display">\[
+E(x) = \sum_{k=0}^{N} kp(x = k) = Np
+\]</span></p>
+<p><strong>Note:</strong> the binomial theorem is <span class="math inline">\((a + b)^N = \sum_{k=0}^{N} \dbinom{N}{k} a^k b^{N-k}\)</span>.</p>
+<ol type="1">
+<li>The Poisson distribution</li>
+</ol>
+<p>Suppose <strong>each week</strong> there are <strong>a large number of vehicles</strong> through a busy intersection and there are <strong>on average</strong> <span class="math inline">\(\mu\)</span> accidents.</p>
+<p>Suppose the probability of a vehicle having an accident is independent of the occurrence of previous accidents.</p>
+<p>Then we use a binomial distribution to determine the probability of <span class="math inline">\(k\)</span> accidents in a week:</p>
+<p>Setting <span class="math inline">\(p = \frac{\mu}{N}\)</span>, then we have</p>
+<p><span class="math display">\[
+\begin{aligned}
+b_k(N) &amp; = \dbinom{N}{k} p^k q^{N-k} \\
+       &amp; = \frac{N(N-1) \cdots (N-k+1)}{k!} p^k q^{N-k} \\
+       &amp; = (1-\frac{1}{N}) \cdots (1-\frac{k-1}{N}) \frac{N^kp^k(1-p)^{N-k}}{k!} \\
+       &amp; = \frac{(1-\frac{1}{N}) \cdots (1-\frac{k-1}{N})}{(1-p)^k} \frac{\mu^k}{k!} (1-\frac{\mu}{N})^N
+\end{aligned}
+\]</span></p>
+<p>Since <span class="math inline">\(e^{-x} = \lim\limits_{n \to \infty} (1-\frac{x}{n})^n\)</span> (<span class="math inline">\(e^x = \lim\limits_{n \to \infty} (1+\frac{x}{n})^n\)</span>), then we have</p>
+<p><span class="math display">\[
+\lim\limits_{N \to \infty,\ \mu = Np} b_k(N) = \frac{\mu^k}{k!} e^{-\mu}
+\]</span></p>
+<p>This gives us an estimate for <span class="math inline">\(b_k(N)\)</span> when <span class="math inline">\(N\)</span> is <strong>large</strong>, <span class="math inline">\(p\)</span> is <strong>small</strong>, and <span class="math inline">\(Np = \mu\)</span>.</p>
+<p>The Poisson distribution is defined as</p>
+<p><span class="math display">\[
+p_k(\mu) = \frac{\mu^k}{k!} e^{-\mu}
+\]</span></p>
+<p>where <span class="math inline">\(\mu\)</span> is a parameter. <span class="math inline">\(p_k\)</span> is the probability of <span class="math inline">\(k\)</span> favorable outcomes, <span class="math inline">\(k = 0, 1, ...\)</span>.</p>
+<p>In addition, the combination of two Poisson processes is again a Poisson process.</p>
+<p>Denote by <span class="math inline">\(p_k(\mu)\)</span> and <span class="math inline">\(p_k(\nu)\)</span> the probability of <span class="math inline">\(k\)</span> favorable outcomes in these two processes. We claim that the probability of <span class="math inline">\(k\)</span> favorable outcomes when both experiments are performed is <span class="math inline">\(p_k(\mu + \nu)\)</span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>There will be <span class="math inline">\(k\)</span> favorable outcomes for the combined experiment if the first experiment has <span class="math inline">\(j\)</span> (<span class="math inline">\(j = 0, 1, ..., k\)</span>) favorable outcomes and the second experiment has <span class="math inline">\(k - j\)</span>.</p>
+<p>If the experiments are independent, the probability of such a combined outcome is the product of the probabilities <span class="math inline">\(p_j(\mu) p_{k-j}(\nu)\)</span>.</p>
+<p>So the probability of the combined experiment to have <span class="math inline">\(k\)</span> favorable outcomes is the sum</p>
+<p><span class="math display">\[
+\begin{aligned}
+\sum_j p_j(\mu) p_{k-j}(\nu) &amp; = \sum_j \frac{\mu^j}{j!} e^{-\mu} \frac{\nu^{k-j}}{(k-j)!} e^{-\nu} \\
+                             &amp; = \frac{1}{k!} e^{-(\mu + \nu)} \sum_j \frac{k!}{j!(k-j)!} \mu^j \nu^{(k-j)} \\
+                             &amp; = \frac{(\mu + \nu)^k}{k!} e^{-(\mu + \nu)}
+\end{aligned}
+\]</span></p>
+<p>which is the Poisson distribution <span class="math inline">\(p_k(\mu + \nu)\)</span>.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="continuous-probability" class="level4" data-number="1.1.2">
+<h4 data-number="1.1.2" class="anchored" data-anchor-id="continuous-probability"><span class="header-section-number">1.1.2</span> Continuous probability</h4>
+<p>Suppose we have such an experiment making a physical measurement with an apparatus subject to random disturbances that can be reduced but not totally eliminated. Then every real number is a possible numerical outcome of such an experiment.</p>
+<p>Repeat the experiment as many times as we wish and denote by <span class="math inline">\(S(x)\)</span> the number of instances among the first <span class="math inline">\(N\)</span> performances for which the numerical outcome was <strong>less than</strong> <span class="math inline">\(x\)</span>.Then the frequency <span class="math inline">\(\frac{S(x)}{N}\)</span> with which this event occurs tends to a limit as <span class="math inline">\(N\)</span> tends to infinity. This limit is <strong>the probability</strong> that <strong>the outcome is less than</strong> <span class="math inline">\(\mathbfcal{x}\)</span>, and is denoted by <span class="math inline">\(P(x)\)</span>:</p>
+<p><span class="math display">\[
+P(x) = \lim\limits_{N \to \infty} \frac{S(x)}{N}
+\]</span></p>
+<p>The probability <span class="math inline">\(P(x)\)</span> has the following properties:</p>
+<ol type="1">
+<li><p><span class="math inline">\(0 \leq P(x) \leq 1\)</span>: <span class="math inline">\(0 \leq S(x) \leq N \implies 0 \leq \frac{S(x)}{N} \leq 1 \implies 0 \leq P(x) \leq 1\)</span>.</p></li>
+<li><p><span class="math inline">\(P(x)\)</span> is a <strong>nondecreasing</strong> function of <span class="math inline">\(x\)</span>: <span class="math inline">\(S(x)\)</span> is a <strong>nondecreasing</strong> function of <span class="math inline">\(x\)</span>, so that <span class="math inline">\(\frac{S(x)}{N}\)</span> is a <strong>nondecreasing</strong> function of <span class="math inline">\(x\)</span>; then so is the limit <span class="math inline">\(P(x)\)</span>.</p></li>
+<li><p><span class="math inline">\(P(x) \to 0\ (x \to -\infty)\)</span>.</p></li>
+<li><p><span class="math inline">\(P(x) \to 1\ (x \to \infty)\)</span>.</p></li>
+<li><p><span class="math inline">\(P(x)\)</span> is a continuously differentiable function (denote the derivative of <span class="math inline">\(P\)</span> by <span class="math inline">\(p\)</span>): <span class="math inline">\(\frac{\mathrm{d}P(x)}{dx} = p(x)\)</span>.</p></li>
+</ol>
+<p>The function <span class="math inline">\(p(x)\)</span> is called the <strong>probability density function</strong>.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="Addition rule for disjoint events">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Addition rule for disjoint events
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Suppose <span class="math inline">\(E\)</span> and <span class="math inline">\(F\)</span> are two events with probabilities <span class="math inline">\(P(E)\)</span> and <span class="math inline">\(P(F)\)</span> respectively.</p>
+<p>Suppose they are <strong>disjoint</strong> (i.e.&nbsp;<span class="math inline">\(E \cap F = \emptyset\)</span>).</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+P(E \cup F) = P(E) + P(F)
+\]</span></p>
+<p>Let <span class="math inline">\(E: x &lt; a\)</span>, <span class="math inline">\(F: a \leq x &lt; b\)</span>, then we have <span class="math inline">\(E \cup F: x &lt; b\)</span>.</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+P(E) = P(a),\ P(E \cup F) = P(b)
+\]</span></p>
+<p>We conclude that</p>
+<p><span class="math display">\[
+P(F) = P(b) - P(a)
+\]</span></p>
+<p>is the probability of <span class="math inline">\(a \leq x &lt; b\)</span>.</p>
+</div>
+</div>
+<p>According to the <strong>mean value theorem</strong>, for every <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span>, there is a number <span class="math inline">\(c\)</span> lying between <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> such that</p>
+<p><span class="math display">\[
+P(b) - P(a) = p(c)(b - a)
+\]</span></p>
+<p>According to the <strong>fundamental theorem of calculus</strong></p>
+<p><span class="math display">\[
+P(b) - P(a) = \int_a^b p(x)\mathrm{d}x
+\]</span></p>
+<p>According to <span class="math inline">\(P(a) \to 0\ (a \to -\infty)\)</span></p>
+<p><span class="math display">\[
+P(b) = \int_{-\infty}^b p(x)\mathrm{d}x
+\]</span></p>
+<p>According to <span class="math inline">\(P(b) \to 1\ (b \to \infty)\)</span></p>
+<p><span class="math display">\[
+1 = \int_{-\infty}^{\infty} p(x)\mathrm{d}x
+\]</span></p>
+<p>This is the continuous analogue of the basic fact that <span class="math inline">\(p_1 + p_2 + \cdots + p_n = 1\)</span> in discrete probability.</p>
+<ol start="6" type="1">
+<li><p><span class="math inline">\(p(x) \geq 0\)</span>: <span class="math inline">\(P(x)\)</span> is a nondecreasing function of <span class="math inline">\(x\)</span>.</p></li>
+<li><p>The expectation is:</p></li>
+</ol>
+<p><span class="math display">\[
+\bar{x} = \int_{-\infty}^{\infty} xp(x)\mathrm{d}x
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Imagine the experiment performed as many times as we wish, and denote the sequence of outcomes by</p>
+<p><span class="math display">\[
+a_1, a_2, ..., a_N, ...
+\]</span></p>
+<p>Divide the interval <span class="math inline">\(I\)</span> <strong>in which all outcomes lie</strong> into <span class="math inline">\(n\)</span> subintervals <span class="math inline">\(I_1, ..., I_n\)</span>. Denote the endpoints by</p>
+<p><span class="math display">\[
+e_0 &lt; e_1 &lt; \cdots &lt; e_n
+\]</span></p>
+<p>The probability of <span class="math inline">\(e_{j-1} \leq x &lt; e_j\)</span> (i.e.&nbsp;<span class="math inline">\(x\)</span> lies in the interval <span class="math inline">\(I_j\)</span>) is</p>
+<p><span class="math display">\[
+P_j = P(e_j) - P(e_{j-1}) = p(x_j)(e_j - e_{j-1})
+\]</span></p>
+<p>where <span class="math inline">\(x_j\)</span> is a point in <span class="math inline">\(I_j\)</span> guaranteed by the mean value theorem, and <span class="math inline">\(e_j - e_{j-1}\)</span> denotes the length of <span class="math inline">\(I_j\)</span>.</p>
+<p>We now simplify the original experiment by recording merely the intervals <span class="math inline">\(I_j\)</span> in which the outcome falls, and calling the numerical outcome in this case <span class="math inline">\(x_j\)</span>, the point in <span class="math inline">\(I_j\)</span> appears in the above formula; therefore, the actual outcome falling into <span class="math inline">\(I_j\)</span> differs from <span class="math inline">\(x_j\)</span> by at most <span class="math inline">\(e_j - e_{j-1}\)</span>.</p>
+<p>Now consider the sequence of outcomes <span class="math inline">\(a_1, a_2, ...\)</span> of the <strong>original experiment</strong>. Denote the corresponding outcomes of the simplified experiment by <span class="math inline">\(b_1, b_2, ...\)</span>. The simplified experiment has a finite number of outcomes. For such discrete experiments, we have the expectation</p>
+<p><span class="math display">\[
+\bar{x}_n = \lim\limits_{N \to \infty} \frac{b_1 + \cdots + b_N}{N}
+\]</span></p>
+<p>where <span class="math inline">\(n\)</span> is the number of subintervals of <span class="math inline">\(I\)</span>.</p>
+<p>In fact, the expectation <span class="math inline">\(\bar{x}_n\)</span> of the simplified experiment can also be calculated by formula</p>
+<p><span class="math display">\[
+\bar{x}_n = P_1x_1 + \cdots + P_nx_n
+\]</span></p>
+<p>Then we have</p>
+<p><span class="math display">\[
+\bar{x}_n = p(x_1)x_1(e_1 - e_0) + \cdots + p(x_n)x_n(e_n - e_{n-1})
+\]</span></p>
+<p>As <span class="math inline">\(n \to \infty\)</span>, we have</p>
+<p><span class="math display">\[
+\bar{x} = \lim\limits_{n \to \infty} \sum_{i=1}^n x_ip(x_i)\Delta x_i = \int_{e_0}^{e_n} xp(x)\mathrm{d}x
+\]</span></p>
+<p>So we conclude</p>
+<p><span class="math display">\[
+\bar{x} = \int_{-\infty}^{\infty} xp(x)\mathrm{d}x
+\]</span></p>
+</div>
+</div>
+<ol start="8" type="1">
+<li>The probability density of a combined experiment of two experiments independent of each other:</li>
+</ol>
+<ul>
+<li>Case 1: the outcome of the first experiment may be any real number, but the second experiment can have only a finite number of outcomes.</li>
+</ul>
+<p>Denote by <span class="math inline">\(P(a)\)</span> the probability of <span class="math inline">\(x &lt; a\)</span>. The second experiment has <span class="math inline">\(n\)</span> possible outcomes <span class="math inline">\(a_1, ..., a_n\)</span> with probabilities <span class="math inline">\(Q_1, ..., Q_n\)</span>.</p>
+<p><strong>We define <em>the numerical outcome of the combined experiment</em> to be <em>the sum of the separate numerical outcomes of the two experiments</em> that constitute it.</strong></p>
+<p>We denote by <span class="math inline">\(E(x)\)</span> the event that the numerical outcome of the combined experiment is less than <span class="math inline">\(x\)</span>, and denote its probability by <span class="math inline">\(U(x)\)</span>.</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+U(x) = Q_1P(x-a_1) + \cdots + Q_nP(x-a_n)
+\]</span></p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>We denote by <span class="math inline">\(E_j(x)\)</span> the event that the numerical outcome of the second experiment is <span class="math inline">\(a_j\)</span>. The numerical outcome of the combined experiment is then less than <span class="math inline">\(x\)</span> if and only if the numerical outcome of the first experiment is less than <span class="math inline">\(x - a_j\)</span>.</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+E(x) = E_1(x) \cup \cdots \cup E_n(x)
+\]</span></p>
+<p>where the events <span class="math inline">\(E_j(x)\)</span> are disjoint.</p>
+<p>It follows from <strong>the addition rule for disjoint events</strong> that</p>
+<p><span class="math display">\[
+U(x) = P(E_1(x)) + \cdots + P(E_n(x))
+\]</span></p>
+<p>Since the two experiments are independent, we have <span class="math inline">\(P(E_j(x)) = Q_j P(x-a_j)\)</span>.</p>
+<p>So we have</p>
+<p><span class="math display">\[
+U(x) = Q_1P(x-a_1) + \cdots + Q_nP(x-a_n)
+\]</span></p>
+</div>
+</div>
+<ul>
+<li>Case 2: both experiments can have any real number as outcome.</li>
+</ul>
+<p>Denote by <span class="math inline">\(P(a)\)</span> and <span class="math inline">\(Q(a)\)</span> the probabilities that the outcome is less than <span class="math inline">\(a\)</span> in each of the two experiments, respectively.</p>
+<p>Assume the outcome of the second experiment always lies in some finite interval <span class="math inline">\(I\)</span>. Then we subdivide <span class="math inline">\(I\)</span> into a finite number <span class="math inline">\(n\)</span> of subintervals <span class="math inline">\(I_j = [e_{j-1}, e_j)\)</span>. Let <span class="math inline">\(Q_j\)</span> denote the probability of the outcome of the experiment lying in <span class="math inline">\(I_j\)</span>.</p>
+<p>Suppose <span class="math inline">\(Q(x)\)</span> is continuously differentiable and denote its derivative by <span class="math inline">\(q(x)\)</span>.</p>
+<p>According to the mean value theorem, we have</p>
+<p><span class="math display">\[
+Q_j = Q(e_j) - Q(e_{j-1}) = q(a_j)(e_j - e_{j-1})
+\]</span></p>
+<p>where <span class="math inline">\(a_j\)</span> is some point in <span class="math inline">\(I_j\)</span>.</p>
+<p>We discretize the second experiment by lumping together all outcomes that lie in <span class="math inline">\(I_j\)</span> and redefine the numerical outcome in that case to be <span class="math inline">\(a_j\)</span>.</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+\begin{aligned}
+U_n(x) &amp; = q(a_1)P(x-a_1)(e_1-e_0) + \cdots + q(a_n)P(x-a_n)(e_n-e_{n-1}) \\
+       &amp; = \sum_{i=1}^{n} q(a_i)p(x-a_i)\Delta a_i
+\end{aligned}
+\]</span></p>
+<p>As <span class="math inline">\(n \to \infty\)</span>, we have</p>
+<p><span class="math display">\[
+\begin{aligned}
+U(x) &amp; = \lim\limits_{n \to \infty} U_n(x) \\
+     &amp; = \lim\limits_{n \to \infty} \sum_{i=1}^{n} q(a_i)p(x-a_i)\Delta a_i \\
+     &amp; = \int\limits_{I} q(a)P(x-a)\mathrm{d}a
+\end{aligned}
+\]</span></p>
+<p>Then we have</p>
+<p><span class="math display">\[
+U(x) = \int_{-\infty}^{\infty} q(a)P(x-a)\mathrm{d}a
+\]</span></p>
+<p>Further, let us suppose <span class="math inline">\(P(x)\)</span> is continuously differentiable, and denote its derivative by <span class="math inline">\(p(x)\)</span>.</p>
+<p>Then we have</p>
+<p><span class="math display">\[
+u(x) = \int_{-\infty}^{\infty} q(a)p(x-a)\mathrm{d}a
+\]</span></p>
+<p>where <span class="math inline">\(u(x)\)</span> is the derivative of <span class="math inline">\(U(x)\)</span>.</p>
+<p>In a word, we have proved the following fact:</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Consider two independent experiments whose outcomes lie in some finite interval and have probability <span class="math inline">\(p\)</span> and <span class="math inline">\(q\)</span> respectively.</p>
+<p>In the combined experiment of the two experiments, define the outcome of the combined experiment to be the sum of the outcomes of the individual experiments.</p>
+<p>Then the combined experiment has the probability density:</p>
+<p><span class="math display">\[
+u(x) = \int_{-\infty}^{\infty} q(a)p(x-a)\mathrm{d}a
+\]</span></p>
+</div>
+</div>
+<ol start="9" type="1">
+<li>The convolution of the functions <span class="math inline">\(q\)</span> and <span class="math inline">\(p\)</span>:</li>
+</ol>
+<p>The function <span class="math inline">\(u\)</span> defined by <span class="math inline">\(u(x) = \int_{-\infty}^{\infty} q(a)p(x-a)\mathrm{d}a\)</span> is called the convolution of the functions <span class="math inline">\(q\)</span> and <span class="math inline">\(p\)</span>. This relation is denoted by <span class="math inline">\(u = q*p\)</span>.</p>
+<p>The convolution has the following properties:</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Let <span class="math inline">\(q_1\)</span>, <span class="math inline">\(q_2\)</span>, and <span class="math inline">\(p\)</span> be continuous functions defined for all real numbers <span class="math inline">\(x\)</span>, and assume the functions are <span class="math inline">\(0\)</span> outside a finite interval. Then we have</p>
+<ul>
+<li><p>Convolution is distributive: <span class="math inline">\((q_1+q_2)*p = q_1*p + q_2*p\)</span>.</p></li>
+<li><p>Let <span class="math inline">\(k\)</span> be any constant. Then <span class="math inline">\((kq)*p = k(q*p)\)</span>.</p></li>
+<li><p>Convolution is commutative: <span class="math inline">\(q*p = p*q\)</span>.</p></li>
+<li><p>The integral of the convolution is the product of the integrals of the factors:</p></li>
+</ul>
+<p><span class="math display">\[
+\int_{-\infty}^{\infty} u(x) \mathrm{d}x = \int_{-\infty}^{\infty} p(x) \mathrm{d}x \int_{-\infty}^{\infty} q(a) \mathrm{d}a
+\]</span></p>
+</div>
+</div>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+<p>Powered by <a href="https://quarto.org">Quarto</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/yr-neurospace/NeuroBorder/edit/main/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/blob/main/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.qmd" class="toc-action"><i class="bi empty"></i>View source</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

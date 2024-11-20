@@ -1,0 +1,138 @@
+---
+title: "Statistical inference concepts of binomial distribution"
+author: "Rui Yang"
+date: "2024-09-21"
+date-modified: last-modified
+categories: [statistical inference, binomial distribution]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+
+jupyter: julia-1.10
+---
+
+## Bernoulli distribution
+
+In an experiment, there are only two outcomes: success $A$ ($X = 1$) and failure $\overline{A}$ ($X = 0$), and the probability of success is $p$. Such an experiment is called a Bernoulli experiment.
+
+In a Bernoulli experiment, the number of success, denoted by $X$, is a random variable and its distribution is called a Bernoulli distribution or a two-point distribution.
+
+Clearly, the PMF of a Bernoulli distribution is
+
+$$
+p(x) = P(X = x) = \begin{cases}
+p &\text{if } x = 1 \\
+1 - p &\text{if } x = 0
+\end{cases}
+$$
+
+Then $E(X) = \sum_{i=1}^{\infty} x_i p(x_i) = 1 \times p + 0 \times (1 - p) = p$, and $Var(X) = E[(X - E(X))^2] = \sum_{i=1}^{\infty} (x_i - E(X))^2 p(x_i) = (1 - p)^2 \times p + (0 - p)^2 \times (1 - p) = p(1 - p)$.
+
+## Binomial distribution
+
+In $n$ independent Bernoulli trials, each with the probability of success $p$, the number of success $Y$ is distributed as a binomial distribution.
+
+The PMF of a binomial distribution is
+
+$$
+p(k) = P(Y = k) = \binom{n}{k} p^k (1-p)^{n - k}, k = 0, 1, ..., n
+$$
+
+Clearly, a binomial distribution can be regarded as the sum of $n$ independent Bernoulli distributions, i.e., $Y = X_1 + \cdots + X_n$. Then, by using the arithmetic properties of expectation and variance, we have $E(Y) = np$ and $Var(Y) = np(1 - p)$.
+
+Due to $Y$ is the sum of $n$ independent Bernoulli random variables, we have $Y\ \ \widetilde{\text{approx}}\ \ N(np, np(1 - p))$ as $n \to \infty$ based on the central limit theorem. We also have $\frac{Y}{n}\ \ \widetilde{\text{approx}}\ \ N(p, \frac{p(1 - p)}{n})$.
+
+## Introduction
+
+Assume that we repeat a Bernoulli trial $n$ times, each of which has the same success probability $p$, and that the number of successes is $n_s$. Then, the random variable (denoted by $X_i$, with value $1$ (success) or $0$ (failure)) in the $i$th Bernoulli trial is distributed as a Bernoulli distribution with the probability of success $p$. According to the central limit theorem, the random variable $Y_n = \sum_{i=1}^{n} X_i$ distributed as a Binomial distribution with parameters $n$ and $p$ can be approximately distributed as a normal distribution (i.e. $Y_n \sim N(np, np(1-p))$). And similarly, we have $\hat{p} = \frac{Y_n}{n} \sim N(p, \frac{p(1-p)}{n})$.
+
+## Point estimates of $p$
+
+### Method of Moments (MM)
+
+$$
+\begin{align}
+\hat{m} &= \frac{1}{n} \sum_{i=1}^{n} X_i = \frac{k}{n} \\
+m &= p \\
+\hat{m} &= m
+\end{align}
+$$
+
+Hence
+
+$$
+p = \frac{k}{n}
+$$
+
+### Maximum likelihood estimate (MLE)
+
+For given $n$ and $k$, we need to find a $p$ to maximize the likelihood function (to make the likelihood of observing $k$ successes among $n$ experiments in total maximized):
+
+$$
+\begin{align}
+L(p) &= \binom{n}{k} p^k (1 - p)^{n - k} \\
+\log{L(p)} &= \log{\binom{n}{k} + k\log{p} + (n - k)\log{(1 - p)}} \\
+\frac{d\log{L(p)}}{dp} &= \frac{k}{p} - \frac{n - k}{1 - p} = 0 \\
+p &= \frac{k}{n}
+\end{align}
+$$
+
+There is a point $p = \frac{k}{n}$ that maximizes $L(p)$.
+
+## Confidence intervals of $p$
+
+```{=html}
+<object data="./pdfs/Binomial proportion confidence intervals.pdf" type="application/pdf" width="100%" height="100%" style="min-width:100vh;min-height:100vh;">
+  <p>It appears you don't have a PDF plugin for this browser. No biggie. You can click <a href="./pdfs/Binomial proportion confidence intervals.pdf">here</a> to download the PDF file.</p>
+</object>
+```
+
+We can use the standard logistic curve to check the overshoot and zero-width of the normal confidence interval:
+
+```{julia}
+using CairoMakie, Statistics, Distributions
+
+# the standard logistic curve can be regareded as a CDF
+# for each p-value, given specific n, we can calculate its normal confidence interval
+# we can easily see that there is a overshoot or zero-width situation
+# when p → 0 or 1
+function standard_logistic(x)
+    1 / (1 + exp(-x))
+end
+
+xGrid = -10:0.1:10
+pVals = standard_logistic.(xGrid)
+
+alpha = 0.05
+z = quantile(Normal(), 1 - alpha / 2)
+
+ns = [10, 100]
+colors = [:blue, :green]
+
+fig, ax = lines(xGrid, pVals; color=:red, label="Standard logistic (true p-value)")
+for i in 1:length(ns)
+    pValLowerCIs = similar(pVals)
+    pValUpperCIs = similar(pVals)
+
+    @. pValLowerCIs = pVals - z * sqrt(pVals * (1 - pVals) / ns[i])
+    @. pValUpperCIs = pVals + z * sqrt(pVals * (1 - pVals) / ns[i])
+
+    lines!(ax, xGrid, pValLowerCIs; color=colors[i], linestyle=:dash, label=string("CI (n: ", ns[i], ")"))
+    lines!(ax, xGrid, pValUpperCIs; color=colors[i], linestyle=:dash)
+end
+axislegend(ax; position=:rb)
+fig
+```

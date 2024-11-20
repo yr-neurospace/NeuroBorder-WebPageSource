@@ -1,0 +1,88 @@
+---
+title: "Compile and install R"
+author: "Rui Yang"
+date: "2024-10-07"
+date-modified: last-modified
+categories: [r, compile, install]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Compile and intsall R-4.3.3 on Ubuntu without root
+
+```{bash}
+# To install GNU softwares
+# You should first learn how to use the command to query its configuration options
+./configure --help
+
+# For detailed compiling and installing parameters
+# You should also learn to consult its README/INSTALL or official doc
+```
+
+```{bash}
+tar -xzvf R-4.3.3.tar.gz
+
+cd R-4.3.3
+
+# Here, we add some options to support the outputs of png, jpeg, tiff, etc.
+# Although some of them are enabled by default
+# To make these options enabled, be sure to install the following libraries first
+sudo apt install -y libjpeg-dev
+sudo apt install -y libpng-dev
+sudo apt install -y libtiff-dev
+sudo apt install -y tcl-dev
+sudo apt install -y tk-dev
+sudo apt install -y libx11-dev
+sudo apt install -y libxml2-dev
+sudo apt install -y libcairo2-dev
+sudo apt install -y gfortran
+sudo apt install -y libreadline-dev
+sudo apt install -y libxt-dev
+sudo apt install -y libcurl4-openssl-dev
+sudo apt install -y default-jdk
+sudo apt install -y libbz2-dev
+
+./configure --prefix=/home/yangrui/softs/R_v4.3.3 --enable-R-shlib --enable-memory-profiling --with-blas --with-lapack --with-libpng --with-jpeglib --with-libtiff --with-x --with-cairo --with-tcltk
+# Configuration on server
+# Some of essential libraries and/or headers may be unavailable in the server
+# You can specify their directories using some environmental variables
+./configure --prefix=/home/yangrui/softs/R_v4.3.3 --enable-R-shlib --enable-memory-profiling --with-blas --with-lapack --with-libpng --with-jpeglib --with-libtiff --with-x --with-cairo --with-tcltk --with-pcre2 LDFLAGS="-L/gpfs/home/yangrui/softs/packages/pcre2-10.42/lib" CPPFLAGS="-I/gpfs/home/yangrui/softs/packages/pcre2-10.42/include"
+
+make
+make install
+
+# Create symbolic links to make it callable by RStudio
+sudo ln -s /home/yangrui/softs/R_v4.3.3/bin/R /usr/bin/R
+sudo ln -s /home/yangrui/softs/R_v4.3.3/bin/Rscript /usr/bin/Rscript
+```
+
+```{bash}
+# Install dependencies for building the PDF versions of the R docs
+sudo apt install -y texlive texlive-fonts-extra
+
+# Install dependencies for building the HTML versions of the R docs
+sudo apt install -y texinfo
+
+# Prompt for installing PCRE2
+tar -xzvf pcre2-10.42.tar.gz
+cd pcre2-10.42
+./configure --prefix=/home/yangrui/softs/packages/pcre2-10.42
+make
+make install
+# Then, add it to PATH
+export PATH=$PATH:/home/yangrui/softs/packages/pcre2-10.42/bin
+```

@@ -1,0 +1,188 @@
+---
+title: "Introduction to systemd service"
+author: "Rui Yang"
+date: "2024-10-06"
+date-modified: last-modified
+categories: [linux, systemd, service]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+---
+
+## Introduction
+
+Systemd 是 Linux 的一个系统和服务管理器。
+
+Systemd service 脚本一般存放于 `/etc/systemd` 和 `/usr/lib/systemd`，前者包含 `*.target.wants` 文件，后者为安装软件生成 service 的目录。
+
+前述两个目录下均包含 `system` 和 `user` 目录，前者是系统服务，即开机不需要用户登录即可运行的服务，后者是用户服务，是需要用户登录后才能运行的服务。
+
+Service 脚本以 `.service` 结尾，包含 Unit、Service 和 Install 三个区块，其中
+
+| 区块         | 描述             |
+|--------------|------------------|
+| Unit 区块    | 描述启动依赖关系 |
+| Service 区块 | 定义启动行为     |
+| Install 区块 | 定义服务安装     |
+
+: {.striped .hover .primary}
+
+1.  Unit 区块常见的描述字段
+
+-   服务描述
+
+| 字段          | 描述               |
+|---------------|--------------------|
+| Description   | 当前服务的简短描述 |
+| Documentation | 文档位置           |
+
+: {.striped .hover .primary}
+
+-   启动顺序
+
+| 字段   | 描述                                                  |
+|--------|-------------------------------------------------------|
+| After  | 定义该服务应该在哪些服务（target or service）之后启动 |
+| Before | 定义该服务应该在哪些服务（target or service）之前启动 |
+
+: {.striped .hover .primary}
+
+-   依赖关系
+
++-------------------+----------------------------------------------------------------------------------------+
+| 字段              | 描述                                                                                   |
++===================+========================================================================================+
+| Wants             | 表示该服务与指定的服务存在“弱依赖”关系，即指定的服务启动失败或退出并不影响该服务的运行 |
++-------------------+----------------------------------------------------------------------------------------+
+| Requires          | 表示“强依赖”关系，即指定的服务启动失败或退出则该服务也会退出                           |
++-------------------+----------------------------------------------------------------------------------------+
+
+: {.striped .hover .primary}
+
+2.  Service 区块常见的描述字段
+
+-   启动命令
+
+| 字段 | 描述 |
+|----|----|
+| EnvironmentFile | 指定当前服务的环境参数文件 |
+| Environment | 后可接多个不同的 Shell 变量 |
+| User | 设置运行服务的用户 |
+| Group | 设置运行服务的用户组 |
+| WorkingDirectory | 设置运行服务的路径 |
+| Exec(Start\|Stop\|StartPre\|StartPost\|StopPost\|Reload) | 各种与执行相关的命令 |
+
+: {.striped .hover .primary}
+
+-   启动类型
+
++-----------------+------------------------------------------------------------------------------------+
+| 字段            | 描述                                                                               |
++=================+====================================================================================+
+| Type            | 可设置的值如下：                                                                   |
+|                 |                                                                                    |
+|                 | -   simple（默认值）：ExecStart 启动的进程为主进程，即直接启动服务进程。           |
+|                 |                                                                                    |
+|                 | -   forking：ExecStart 字段以 `fork()` 方式启动。                                  |
+|                 |                                                                                    |
+|                 | -   oneshot：类似于 simple，但只执行一次，Systemd 会等它执行完才启动其它服务。     |
+|                 |                                                                                    |
+|                 | -   dbus: 类似于 simple，但会在 D-Bus 信号后启动。                                 |
+|                 |                                                                                    |
+|                 | -   notify：类似于 simple，启动结束后会发出通知信号，然后 Systemd 再启动其它服务。 |
+|                 |                                                                                    |
+|                 | -   idle：类似于 simple，但要等到其它任务都执行完，才会启动服务。                  |
++-----------------+------------------------------------------------------------------------------------+
+| RemainAfterExit | yes 表示进程退出后，服务仍然保持执行                                               |
++-----------------+------------------------------------------------------------------------------------+
+
+: {.striped .hover .primary}
+
+-   重启行为
+
++-------------+---------------------------------------------------------------------+
+| 字段        | 描述                                                                |
++=============+=====================================================================+
+| KillMode    | 可设置的值如下：                                                    |
+|             |                                                                     |
+|             | -   control-group（默认值）：当前控制组里面的所有子进程都会被杀掉。 |
+|             |                                                                     |
+|             | -   process：只杀主进程。                                           |
+|             |                                                                     |
+|             | -   mixed：主进程收到 SIGTERM 信号，子进程收到 SIGKILL 信号。       |
+|             |                                                                     |
+|             | -   none：没有进程会被杀掉，只是执行服务的 stop 命令。              |
++-------------+---------------------------------------------------------------------+
+| Restart     | 定义服务退出后 Systemd 的重启方式。可设置的值如下：                 |
+|             |                                                                     |
+|             | -   no（默认值）：退出后不会重启。                                  |
+|             |                                                                     |
+|             | -   on-success：只有正常退出时才会重启。                            |
+|             |                                                                     |
+|             | -   on-failure：非正常退出时，包括被信号终止和超时才会重启。        |
+|             |                                                                     |
+|             | -   on-abnormal：只有被信号终止和超时才会重启。                     |
+|             |                                                                     |
+|             | -   on-abort：只有在收到没有被捕捉到的终止信号才会重启。            |
+|             |                                                                     |
+|             | -   on-watchdog：超时退出才会重启。                                 |
+|             |                                                                     |
+|             | -   always：总是重启。                                              |
++-------------+---------------------------------------------------------------------+
+| RestartSec  | Systemd 重启前需等待的秒数                                          |
++-------------+---------------------------------------------------------------------+
+
+: {.striped .hover .primary}
+
+3.  Install 区块
+
+| 字段     | 描述                    |
+|----------|-------------------------|
+| WantedBy | 表示该服务所在的 Target |
+
+: {.striped .hover .primary}
+
+Target 的含义是服务组，如 `WantedBy=multi-user.target` 指的是该服务属于 `multi-user.target`。当执行 `systemctl enable xxx.servive` 时，`xxx.service` 的符号链接就会被创建在 `/etc/systemd/system/multi-user.target.wants` 目录下。可以通过 `systemctl get-default` 查看系统默认启动的 target。在配置好相应的 WantedBy 字段后，可以实现服务的开机自启动。
+
+假设我们已经编写好服务脚本 `/etc/systemd/system/clash_galaxy.service`，其内容如下：
+
+```         
+[Unit]
+Description=The internet proxy clash for galaxy.
+After=network.target
+
+[Service]
+Type=simple
+User=galaxy
+Restart=on-abort
+ExecStart=/home/galaxy/.config/mihomo/clash
+
+[Install]
+WantedBy=graphical.target
+```
+
+首先，利用 `sudo systemctl daemon-reload` 重新加载所有 Systemd 服务，否则会找不到 `clash_galaxy.service` 服务。
+
+接着就可以使用下述命令来控制服务：
+
+```{bash}
+# 自启动|启动|停止|重启|查看状态
+sudo systemctl [enable|start|stop|restart|status] clash_galaxy.service
+```
+
+执行启动命令：`sudo systemctl start clash_galaxy.service`。
+
+如果希望服务在系统启动时自启动，则需执行命令：`sudo systemctl enable clash_galaxy.service`。

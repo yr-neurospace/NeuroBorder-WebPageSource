@@ -1,0 +1,83 @@
+---
+title: "Guides for NeuroBorder Shiny App"
+author: "Rui Yang"
+date: "2024-11-20"
+date-modified: last-modified
+categories: [r, neuroborder, shiny]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+For convenience of internal use, NeuroBorder Shiny App is also deployed in Ubuntu Linux. It can be visited via `http://172.16.50.95:61111`, which is an **internal** IP and not a permanent IP. This means that it cannot be visited outside and may be changed in the future. If it's invalid sometime in the future, please let me know. I will update it as I can.
+
+## Notes for Graph Apps
+
+1. ggplot2 aesthetic specifications: you can find supported formats for ggplot2 aesthetics of color, line type, point shape, etc. [here](https://ggplot2.tidyverse.org/articles/ggplot2-specs.html).
+
+## Download and run NeuroBorder Shiny App in your laptop
+
+### Install R, Rtools, RStudio
+
+Download and install suitable versions of R and/or Rtools (recommended for Windows users) for your computer from [the offical R website](https://www.r-project.org) or more directly from some mirrors of it, like [TUNA Team of Tsinghua University](https://mirrors.tuna.tsinghua.edu.cn/CRAN).
+
+It's highly recommended to download and install suitable version of RStudio for your computer from [the offical RStudio website](https://posit.co/download/rstudio-desktop) although this is unnecessary for running NeuroBorder Shiny App. But it can provide a great deal of convenience for you to use R.
+
+### Install R packages
+
+Open your R/RStudio, and paste the following code into your console, and enter to run it:
+
+```{r}
+install.packages("unigd")
+install.packages("FactoMineR")
+install.packages("aplot")
+install.packages("enrichplot")
+install.packages("ggforce")
+install.packages("ggprism")
+install.packages("ggrepel")
+install.packages("ggtext")
+install.packages("glue")
+install.packages("magrittr")
+install.packages("scales")
+install.packages("stringr")
+install.packages("tidyverse")
+install.packages("vroom")
+install.packages("sysfonts")
+install.packages("DT")
+install.packages("bslib")
+install.packages("shiny")
+
+remotes::install_github("yr-neurospace/R-YRUtils")
+```
+
+### Download and run NeuroBorder Shiny App
+
+Now, you can download the NeuroBorder Shiny App from [here](https://github.com/yr-neurospace/NeuroBorder-ShinyWebApp). And then just click **Code** $\to$ **Download ZIP** step by step.
+
+Once you have downloaded and unzipped it, you will find a file named `app.R`, which is the top entry for this app. Of course, you don't need to care about what it is.
+
+Next, open your R/RStudio, and paste the following code into your console, and enter to run it:
+
+```{r}
+shiny::runApp(appDir = "C:/Users/yangrui/Downloads/NeuroBorder-ShinyWebApp-main", launch.browser = TRUE)
+```
+
+**NOTE:** you should replace the path `C:/Users/yangrui/Downloads/NeuroBorder-ShinyWebApp-main` with yours. This is a path to the directory containing `app.R`.
+
+In theory, the system's default web browser will be launched automatically after the app is started. If it is not the case, you can find the listening address from its output like `Listening on http://127.0.0.1:3593`, and paste `http://127.0.0.1:3593` to your browser yourself. So far, you can use it just like a web page.
