@@ -23,6 +23,8 @@
   {
     "listing": "/Blogs/Computer/index.html",
     "items": [
+      "/Blogs/Computer/posts/OS/Windows/windows_cmds/index.html",
+      "/Blogs/Computer/posts/OS/Linux/linux_cmds/index.html",
       "/Blogs/Computer/posts/Misc/sticky_notes/index.html",
       "/Blogs/Computer/posts/OS/Windows/configure_mstsc_rdp/index.html",
       "/Blogs/Computer/posts/Programming/R/compile_and_install_r/index.html",

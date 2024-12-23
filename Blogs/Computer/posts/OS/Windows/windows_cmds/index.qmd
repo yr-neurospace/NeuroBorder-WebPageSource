@@ -1,0 +1,44 @@
+---
+title: "Commonly used Windows commands"
+author: "Rui Yang"
+date: "2024-12-23"
+date-modified: last-modified
+categories: [windows, command]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  eval: false
+  warning: false
+---
+
+## Windows 11 shortcut keys
+
+### Multiple virtual desktops
+
+```{bash}
+Ctrl + Win + D: create
+Ctrl + Win <--/-->: move to the left or right
+Ctrl + Win + F4: delete
+Win + Tab: show all desktops and apps in the current desktop
+```
+
+### Multiple Apps
+
+```{bash}
+Alt + Tab: move to the last active app
+Alt Esc: looping through apps
+Ctrl + Alt + Tab: show all apps and use <--/--> to move
+Alt + F4: close or show power menu if used in desktop level
+```

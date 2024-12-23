@@ -1,0 +1,12 @@
+{
+  "hash": "97b9646fa66f37f75883b2bd90167f83",
+  "result": {
+    "engine": "jupyter",
+    "markdown": "---\ntitle: \"Commonly used Windows commands\"\nauthor: \"Rui Yang\"\ndate: \"2024-12-23\"\ndate-modified: last-modified\ncategories: [windows, command]\nformat:\n  html:\n    toc: true\n    toc-depth: 6\n    toc-location: left\n    fig-align: center\n    number-depth: 6\n    number-sections: true\n    fig-cap-location: bottom\n    fig-format: png\n    lightbox: true\n    tbl-cap-location: top\n    page-layout: full\n\nexecute:\n  eval: false\n  warning: false\n---\n\n\n\n\n## Windows 11 shortcut keys\n\n### Multiple virtual desktops\n\n\n\n\n```{bash}\nCtrl + Win + D: create\nCtrl + Win <--/-->: move to the left or right\nCtrl + Win + F4: delete\nWin + Tab: show all desktops and apps in the current desktop\n```\n\n\n\n\n### Multiple Apps\n\n\n\n\n```{bash}\nAlt + Tab: move to the last active app\nAlt Esc: looping through apps\nCtrl + Alt + Tab: show all apps and use <--/--> to move\nAlt + F4: close or show power menu if used in desktop level\n```\n\n",
+    "supporting": [
+      "index_files/figure-html"
+    ],
+    "filters": [],
+    "includes": {}
+  }
+}
