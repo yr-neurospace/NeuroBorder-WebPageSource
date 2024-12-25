@@ -82,14 +82,14 @@ For single-end samples: `Cortex_rep1.fq.gz`, `Cortex_rep2_part1.fq.gz`, `Cortex_
 Once renaming is done, generate MD5 sums again for your newly renamed raw FASTQ files by running the following code in the directory containing your newly renamed FASTQ files:
 
 ```{bash}
-md5sum.exe *.fastq.gz > md5.txt
+md5sum *.fastq.gz > md5.txt
 ```
 
 This will generate all MD5 sums of your newly renamed FASTQ files in file `md5.txt`.
 
 ### Upload your raw FASTQ files and MD5 sums file to NeuroBorder Galaxy
 
-At present, the IP address of NeuroBorder Galaxy is an internal IP address `http://172.16.50.95`. This means that you cannot visit it outside. In addition, this IP is not permanent, which means it may be changed in the future. If you find it is invalid, please let me know. I will update it as I can.
+At present, the IP address of NeuroBorder Galaxy is an internal IP address `http://172.16.50.209`. This means that you cannot visit it outside. In addition, this IP is not permanent, which means it may be changed in the future. If you find it is invalid, please let me know. I will update it as I can.
 
 Once you have typed the IP address into your browser, you can upload data and perform various analyses within NeuroBorder Galaxy.
 

@@ -194,7 +194,7 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">November 20, 2024</p>
+        <p class="date-modified">December 25, 2024</p>
       </div>
     </div>
       
@@ -275,12 +275,12 @@ window.Quarto = {
 <p>For paired-end samples: <code>Brain1_rep1.fastq.R1.gz</code>, <code>Brain1_rep1.fastq.R2.gz</code>, <code>Brain1_rep2_part1.R1.fq.gz</code>, <code>Brain1_rep2_part2.R1.fastq.gz</code>, <code>Brain1_rep2_part1.R2.fq.gz</code>, <code>Brain1_rep2_part2.R2.fastq.gz</code>.</p>
 <p>For single-end samples: <code>Cortex_rep1.fq.gz</code>, <code>Cortex_rep2_part1.fq.gz</code>, <code>Cortex_rep2_part2.fastq.gz</code>.</p>
 <p>Once renaming is done, generate MD5 sums again for your newly renamed raw FASTQ files by running the following code in the directory containing your newly renamed FASTQ files:</p>
-<pre class="{bash}"><code>md5sum.exe *.fastq.gz &gt; md5.txt</code></pre>
+<pre class="{bash}"><code>md5sum *.fastq.gz &gt; md5.txt</code></pre>
 <p>This will generate all MD5 sums of your newly renamed FASTQ files in file <code>md5.txt</code>.</p>
 </section>
 <section id="upload-your-raw-fastq-files-and-md5-sums-file-to-neuroborder-galaxy" class="level3" data-number="2.3">
 <h3 data-number="2.3" class="anchored" data-anchor-id="upload-your-raw-fastq-files-and-md5-sums-file-to-neuroborder-galaxy"><span class="header-section-number">2.3</span> Upload your raw FASTQ files and MD5 sums file to NeuroBorder Galaxy</h3>
-<p>At present, the IP address of NeuroBorder Galaxy is an internal IP address <code>http://172.16.50.95</code>. This means that you cannot visit it outside. In addition, this IP is not permanent, which means it may be changed in the future. If you find it is invalid, please let me know. I will update it as I can.</p>
+<p>At present, the IP address of NeuroBorder Galaxy is an internal IP address <code>http://172.16.50.209</code>. This means that you cannot visit it outside. In addition, this IP is not permanent, which means it may be changed in the future. If you find it is invalid, please let me know. I will update it as I can.</p>
 <p>Once you have typed the IP address into your browser, you can upload data and perform various analyses within NeuroBorder Galaxy.</p>
 <p>For how to use some basic functionalities of NeuroBorder Galaxy, such as uploading data, managing history, etc., you can learn them from <a href="https://training.galaxyproject.org">the Galaxy Training</a> or I can give you some demos in real time if necessary.</p>
 <p>At present, all tools used for ENCODE RNA-seq pipeline is under <code>Tools</code> <span class="math inline">\(\to\)</span> <code>NeuroBorder Tools</code>, in which you can choose the concrete tool for your purpose.</p>

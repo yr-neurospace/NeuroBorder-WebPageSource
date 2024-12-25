@@ -25,7 +25,7 @@ execute:
 
 ## Introduction
 
-For convenience of internal use, NeuroBorder Shiny App is also deployed in Ubuntu Linux. It can be visited via `http://172.16.50.95:61111`, which is an **internal** IP and not a permanent IP. This means that it cannot be visited outside and may be changed in the future. If it's invalid sometime in the future, please let me know. I will update it as I can.
+For convenience of internal use, NeuroBorder Shiny App is also deployed in Ubuntu Linux. It can be visited via `http://172.16.50.209:61111`, which is an **internal** IP and not a permanent IP. This means that it cannot be visited outside and may be changed in the future. If it's invalid sometime in the future, please let me know. I will update it as I can.
 
 ## Notes for Graph Apps
 
@@ -44,26 +44,24 @@ It's highly recommended to download and install suitable version of RStudio for 
 Open your R/RStudio, and paste the following code into your console, and enter to run it:
 
 ```{r}
-install.packages("unigd")
 install.packages("FactoMineR")
 install.packages("aplot")
+install.packages("bslib")
+install.packages("digest")
 install.packages("enrichplot")
 install.packages("ggforce")
+install.packages("gginnards")
+install.packages("ggnewscale")
 install.packages("ggprism")
 install.packages("ggrepel")
 install.packages("ggtext")
 install.packages("glue")
 install.packages("magrittr")
 install.packages("scales")
+install.packages("shiny")
 install.packages("stringr")
 install.packages("tidyverse")
-install.packages("vroom")
-install.packages("sysfonts")
-install.packages("DT")
-install.packages("bslib")
-install.packages("shiny")
-
-remotes::install_github("yr-neurospace/R-YRUtils")
+install.packages("uuid")
 ```
 
 ### Download and run NeuroBorder Shiny App
