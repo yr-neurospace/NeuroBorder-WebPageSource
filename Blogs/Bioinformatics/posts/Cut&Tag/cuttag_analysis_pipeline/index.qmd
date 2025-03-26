@@ -1,0 +1,1863 @@
+---
+title: "Cut&Tag analysis pipeline"
+author: "Rui Yang"
+date: "2024-12-30"
+date-modified: last-modified
+categories: [cut&tag]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+jupyter: julia-1.10
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+Before running any of the following steps, you should rename your FASTQ files according to [these rules](https://www.neuroborder.com/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/#copy-your-raw-fastq-data-to-a-new-directory-and-rename-them).
+
+```{julia}
+work_dir = "/data/users/yangrui/mouse/cuttag_v20250108"
+
+cd(work_dir)
+```
+
+```{r}
+work_dir <- "/data/users/yangrui/mouse/cuttag_v20250108"
+
+setwd(work_dir)
+```
+
+## MD5SUM check over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+md5_file = "md5.txt"
+md5_check_file = "md5_check.txt"
+
+cd(raw_fastq_dir)
+YRUtils.BaseUtils.md5_check(md5_file, md5_check_file)
+cd(work_dir)
+```
+
+## FASTQC over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+raw_fastqc_dir = "raw_fastqc"
+
+mkpath(raw_fastqc_dir)
+raw_fastq_files = YRUtils.BaseUtils.list_files(raw_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+YRUtils.BioUtils.fastqc(raw_fastq_files, raw_fastqc_dir;
+    fastqc_options="--threads 4", multiqc_options="--zip-data-dir", num_jobs=4)
+```
+
+## Quality trimming over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+clean_fastq_dir = "clean_fastq"
+
+mkpath(clean_fastq_dir)
+raw_fastq_files = YRUtils.BaseUtils.list_files(raw_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+dict = YRUtils.BioUtils.auto_detect_fastq_read_type(raw_fastq_files)
+files_dict = if dict["paired"]["status"] == "yes"
+    dict["paired"]["dict"]
+elseif dict["single"]["status"] == "yes"
+    dict["single"]["dict"]
+else
+    @error "did not detect any paired-end or single-end files"
+end
+files_read_type = if dict["paired"]["status"] == "yes"
+    "paired"
+elseif dict["single"]["status"] == "yes"
+    "single"
+else
+    @error "did not detect any paired-end or single-end files"
+end
+YRUtils.BioUtils.trimgalore(files_dict, files_read_type, clean_fastq_dir;
+    trimgalore_options="--cores 4 --phred33 --quality 20 --length 30 --trim-n",
+    num_jobs=1)
+```
+
+## FASTQC over clean FASTQ files
+
+```{julia}
+using YRUtils
+
+clean_fastq_dir = "clean_fastq"
+clean_fastqc_dir = "clean_fastqc"
+
+mkpath(clean_fastqc_dir)
+clean_fastq_files = YRUtils.BaseUtils.list_files(clean_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+YRUtils.BioUtils.fastqc(clean_fastq_files, clean_fastqc_dir;
+    fastqc_options="--threads 4", multiqc_options="--zip-data-dir", num_jobs=4)
+```
+
+## Build Bowtie2 index
+
+```{julia}
+using YRUtils
+
+ref_fa = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt_analysis_set_ENCODE.fasta.gz"
+bowtie2_index_dir = "bowtie2_index"
+bowtie2_index_prefix = "mm10"
+bowtie2_n_threads = 40
+log_dir = "log"
+tmp_dir = "tmp"
+
+mkpath(bowtie2_index_dir)
+mkpath(log_dir)
+mkpath(tmp_dir)
+if !isnothing(match(r"\.gz$", ref_fa))
+    new_ref_fa = joinpath(tmp_dir, replace(basename(ref_fa), r"\.gz$" => ""))
+    YRUtils.ShellUtils.pigz(ref_fa, new_ref_fa; decompress=true, keep=true)
+else
+    new_ref_fa = ref_fa
+end
+cmd = pipeline(Cmd(string.(["bowtie2-build", "--threads", bowtie2_n_threads, "-f", new_ref_fa, joinpath(bowtie2_index_dir, bowtie2_index_prefix)]));
+    stdout=joinpath(log_dir, "build_bowtie2_index.log"),
+    stderr=joinpath(log_dir, "build_bowtie2_index.log"))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+if !isnothing(match(r"\.gz$", ref_fa))
+    rm(new_ref_fa)
+end
+```
+
+## Align reads with Bowtie2
+
+```{julia}
+using YRUtils
+
+clean_fastq_dir = "clean_fastq"
+bam_dir = "bam"
+tmp_dir = "tmp"
+log_dir = "log"
+bowtie2_n_threads = 40
+bowtie2_index = "bowtie2_index/mm10"
+samtools_n_threads = 40
+samtools_mem = "768M"
+
+mkpath(bam_dir)
+clean_fastq_files = YRUtils.BaseUtils.list_files(clean_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+dict = YRUtils.BioUtils.auto_detect_fastq_read_type(clean_fastq_files)
+files_dict = if dict["paired"]["status"] == "yes"
+    dict["paired"]["dict"]
+elseif dict["single"]["status"] == "yes"
+    dict["single"]["dict"]
+else
+    @error "did not detect any paired-end or single-end files"
+end
+files_read_type = if dict["paired"]["status"] == "yes"
+    "paired"
+elseif dict["single"]["status"] == "yes"
+    "single"
+else
+    @error "did not detect any paired-end or single-end files"
+end
+if files_read_type == "paired"
+    for sample in keys(files_dict)
+        for replicate in keys(files_dict[sample])
+            r1_fq_files = files_dict[sample][replicate]["R1"]
+            r2_fq_files = files_dict[sample][replicate]["R2"]
+            bam_file = joinpath(bam_dir, string(sample, "_", replicate, ".chr_srt.bam"))
+
+            if length(r1_fq_files) > 1
+                r1_fq_file = joinpath(tmp_dir, string(sample, "_", replicate, ".R1.fq.gz"))
+                cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+                    string("zcat -f ", join(r1_fq_files, " "),
+                        " | pigz -n -c > ",
+                        r1_fq_file)]))
+                @info string("running ", cmd, " ...")
+                run(cmd; wait=true)
+            else
+                r1_fq_file = r1_fq_files[1]
+            end
+            if length(r2_fq_files) > 1
+                r2_fq_file = joinpath(tmp_dir, string(sample, "_", replicate, ".R2.fq.gz"))
+                cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+                    string("zcat -f ", join(r2_fq_files, " "),
+                        " | pigz -n -c > ",
+                        r2_fq_file)]))
+                @info string("running ", cmd, " ...")
+                run(cmd; wait=true)
+            else
+                r2_fq_file = r2_fq_files[1]
+            end
+
+            cmd = pipeline(
+                Cmd(
+                    string.(["/usr/bin/bash", "-e", "-c",
+                        string("bowtie2 -X 2000 -p ", bowtie2_n_threads, " -x ", bowtie2_index, " -1 ", r1_fq_file, " -2 ", r2_fq_file,
+                            " | samtools view -S -u - | samtools sort -@ ", samtools_n_threads, " -m ", samtools_mem, " - -o ", bam_file)]),
+                );
+                stdout=joinpath(log_dir, "bowtie2_align.log"),
+                stderr=joinpath(log_dir, "bowtie2_align.log"),
+                append=true)
+            @info string("running ", cmd, " ...")
+            open(io -> println(io, string("running ", cmd, " ...")),
+                joinpath(log_dir, "bowtie2_align.log"), "a")
+            run(cmd; wait=true)
+        end
+    end
+end
+
+cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c", string("rm -rf ", joinpath(tmp_dir, "*"))]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+```
+
+## Remove reads unmapped and with low quality
+
+After this step, if read duplication rate is very low, you can skip the next step - removing duplicate reads.
+
+```{julia}
+using YRUtils
+
+bam_dir = "bam"
+high_qual_bam_dir = "high_qual_bam"
+log_dir = "log"
+tmp_dir = "tmp"
+samtools_n_threads = 40
+samtools_mem = "768M"
+map_qual = 30
+
+mkpath(high_qual_bam_dir)
+bam_files = YRUtils.BaseUtils.list_files(bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    tmp_name_srt_bam_file = joinpath(tmp_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".name_srt.bam"))
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools view -u -F 1804 -f 2 -q ", map_qual, " ", bam_file,
+                " | samtools sort -n -@ ", samtools_n_threads, " -m ", samtools_mem, " - -o ", tmp_name_srt_bam_file)]));
+        stdout=joinpath(log_dir, "reads_filter.log"),
+        stderr=joinpath(log_dir, "reads_filter.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "reads_filter.log"), "a")
+    run(cmd; wait=true)
+
+    tmp_fixmate_bam_file = joinpath(tmp_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".fixmate.bam"))
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools fixmate -@ ", samtools_n_threads, " -r ", tmp_name_srt_bam_file, " ", tmp_fixmate_bam_file)]));
+        stdout=joinpath(log_dir, "reads_filter.log"),
+        stderr=joinpath(log_dir, "reads_filter.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "reads_filter.log"), "a")
+    run(cmd; wait=true)
+
+    filtered_bam_file = joinpath(high_qual_bam_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".chr_srt.bam"))
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools view -u -F 1804 -f 2 ", tmp_fixmate_bam_file,
+                " | samtools sort -@ ", samtools_n_threads, " -m ", samtools_mem, " - -o ", filtered_bam_file)]));
+        stdout=joinpath(log_dir, "reads_filter.log"),
+        stderr=joinpath(log_dir, "reads_filter.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "reads_filter.log"), "a")
+    run(cmd; wait=true)
+
+    rm.([tmp_name_srt_bam_file, tmp_fixmate_bam_file])
+end
+```
+
+## Remove duplicate reads
+
+### Add `@RG` line if it is not existed
+
+When you mark duplicates using `Picard`, tag `@RG` within the header section in your BAM files is mandatory.
+
+You can check whether your BAM files contain tag `@RG` line with the following code (no if nothing appears):
+
+```{bash}
+samtools view -H <your BAM file> | grep '@RG'
+```
+
+Check whether your BAM files are sorted:
+
+```{bash}
+samtools view -H <your BAM file> | grep '@HD'
+```
+
+See [here](https://gatk.broadinstitute.org/hc/en-us/articles/360035890671-Read-groups) for how read group is defined by GATK and [here](https://en.wikipedia.org/wiki/FASTQ_format) for how to extract some info from FASTQ files.
+
+Read group defined by GATK:
+
+```{bash}
+@RG ID:H0164.2  PL:illumina PU:H0164ALXX140820.2    LB:Solexa-272222    PI:0    DT:2014-08-20T00:00:00-0400 SM:NA12878  CN:BI
+```
+
+- `ID:<flow cell name>.<lane number>`: read group identifier.
+
+- `PU:<flow cell barcode>.<lane number>.<sample barcode>`: platform unit (optional). Flow cell barcode refers to the unique identifier for a particular flow cell. Sample barcode is a sample/library-specific identifier.
+
+- `SM:<sample name>`: sample.
+
+- `PL:<platform name>`: platform/technology used to produce the read, such as ILLUMINA, SOLID, LS454, HELICOS and PACBIO.
+
+- `LB:<library name>`: DNA preparation library identifier. This can be used to identify duplicates derived from library preparation.
+
+```{julia}
+# Construct tag @RG line by extracting some info from paired-end FASTQ files and their file names
+# Only compatible with Casava 1.8 format
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+high_qual_bam_dir = "high_qual_bam"
+add_rg_bam_dir = "add_rg_bam"
+platform = "ILLUMINA"
+samtools_n_threads = 40
+
+mkpath(add_rg_bam_dir)
+raw_fastq_files = YRUtils.BaseUtils.list_files(raw_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+fastq_header_names = ["instrument_name", "run_id", "flowcell_id", "flowcell_lane", "lane_tile_number", "tile_cluster_x_coord",
+    "tile_cluster_y_coord", "pair_member_number", "is_passed", "control_bits_on", "index_sequence"]
+for raw_fastq_file in raw_fastq_files
+    input_bam_file = joinpath(high_qual_bam_dir, replace(basename(raw_fastq_file), r"\.R[12]\.(fastq|fq)(\.gz)*" => ".chr_srt.bam"))
+    output_bam_file = joinpath(add_rg_bam_dir, basename(input_bam_file))
+    cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+        string("zcat -f ", raw_fastq_file, " | grep -P '^@' | head -n 1")]))
+    fastq_header_line = split(strip(strip(read(cmd, String)), '@'), r" +")
+    if length(fastq_header_line) == 2
+        fastq_header_values = YRUtils.BaseUtils.flatten_array(split.(fastq_header_line, ":"))
+        if length(fastq_header_values) == length(fastq_header_names)
+            fastq_header_dict = Dict(zip(fastq_header_names, fastq_header_values))
+            rg_line = string("@RG\\tID:", fastq_header_dict["flowcell_id"], ".", fastq_header_dict["flowcell_lane"],
+                "\\tPL:", platform, "\\tSM:", replace(basename(raw_fastq_file), r"\.R[12]\.(fastq|fq)(\.gz)*" => ""),
+                "\\tLB:", replace(basename(raw_fastq_file), r"\.R[12]\.(fastq|fq)(\.gz)*" => ""))
+            if isfile(input_bam_file) && !isfile(output_bam_file)
+                cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+                    string("samtools addreplacerg -@ ", samtools_n_threads, " -r '", rg_line, "' -o ",
+                        output_bam_file, " ", input_bam_file)]))
+                @info string("running ", cmd, " ...")
+                run(cmd; wait=true)
+            else
+                @info string("input BAM file (", input_bam_file, ") is invalid or output BAM file (", output_bam_file, ") has already existed, you can add @RG line yourself: ", rg_line)
+            end
+        else
+            @error "unsupported FASTQ header format"
+        end
+    else
+        @error "unsupported FASTQ header format"
+    end
+end
+```
+
+### Remove duplicate reads
+
+```{julia}
+using YRUtils
+
+add_rg_bam_dir = "add_rg_bam"
+mark_dup_bam_dir = "mark_dup_bam"
+rm_dup_bam_dir = "rm_dup_bam"
+log_dir = "log"
+tmp_dir = "tmp"
+picard_path = "/data/softwares/picard_v3.3.0/picard.jar"
+samtools_n_threads = 40
+
+mkpath(mark_dup_bam_dir)
+mkpath(rm_dup_bam_dir)
+bam_files = YRUtils.BaseUtils.list_files(add_rg_bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    mark_dup_bam_file = joinpath(mark_dup_bam_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".mark_dup.bam"))
+    mark_dup_metrics_file = joinpath(mark_dup_bam_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".metrics.txt"))
+    rm_dup_bam_file = joinpath(rm_dup_bam_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".rm_dup.bam"))
+
+    cmd = pipeline(
+        Cmd(
+            string.(["/usr/bin/bash", "-e", "-c",
+                string("java -jar ", picard_path, " MarkDuplicates --INPUT ", bam_file, " --OUTPUT ", mark_dup_bam_file,
+                    " --METRICS_FILE ", mark_dup_metrics_file, " --VALIDATION_STRINGENCY LENIENT ",
+                    " --USE_JDK_DEFLATER true --USE_JDK_INFLATER true --ASSUME_SORT_ORDER coordinate ",
+                    " --REMOVE_DUPLICATES false --TMP_DIR ", tmp_dir)]),
+        );
+        stdout=joinpath(log_dir, "mark_rm_reads_dups.log"),
+        stderr=joinpath(log_dir, "mark_rm_reads_dups.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "mark_rm_reads_dups.log"), "a")
+    run(cmd; wait=true)
+
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools view -@ ", samtools_n_threads, " -F 1804 -f 2 -b ",
+                mark_dup_bam_file, " -o ", rm_dup_bam_file)]));
+        stdout=joinpath(log_dir, "mark_rm_reads_dups.log"),
+        stderr=joinpath(log_dir, "mark_rm_reads_dups.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "mark_rm_reads_dups.log"), "a")
+    run(cmd; wait=true)
+end
+```
+
+## Assess fragment length distributions
+
+### Extract fragment lengths
+
+```{julia}
+using YRUtils
+
+rm_dup_bam_dir = "rm_dup_bam"
+frag_len_dir = "frag_len"
+samtools_n_threads = 40
+
+mkpath(frag_len_dir)
+bam_files = YRUtils.BaseUtils.list_files(rm_dup_bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    frag_len_stat_file = joinpath(frag_len_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".frag_len_stat.tsv"))
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools view -@ ", samtools_n_threads, " ", bam_file,
+                raw" | awk -v FS='\t' -v OFS='\t' 'function abs(x) {return ((x < 0.0) ? -x : x)} {print abs($9)}' ",
+                raw" | sort -n | uniq -c | awk -v OFS='\t' '{print $2,$1/2}' > ", frag_len_stat_file)]),
+    )
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+end
+```
+
+### Visualize fragment length distibutions
+
+```{r}
+library(tidyverse)
+library(YRUtils)
+library(vroom)
+
+frag_len_dir <- "frag_len"
+
+frag_len_stat_files <- list.files(frag_len_dir, pattern = "\\.tsv$", full.names = TRUE, recursive = FALSE)
+df <- tibble()
+for (frag_len_stat_file in frag_len_stat_files) {
+    tmp_df <- vroom(frag_len_stat_file, col_names = c("frag_len", "count")) %>%
+        mutate(sample = gsub("\\.\\w+\\.tsv$", "", basename(frag_len_stat_file)))
+    df <- bind_rows(df, tmp_df)
+}
+df <- df %>% arrange(sample, frag_len, count)
+
+p <- ggplot(df, aes(frag_len, count, color = sample)) +
+    geom_freqpoly(stat = "identity", linewidth = 0.5) +
+    labs(
+        x = "Fragment length",
+        y = "Count", color = "Sample"
+    ) +
+    theme_classic(base_family = "Arial", base_size = 20)
+ppreview(p, file = file.path(frag_len_dir, "frag_len_dist.freqpoly.pdf"))
+```
+
+## Assess the reproducibility of replicates
+
+### Convert BAM into BED
+
+```{julia}
+using YRUtils
+
+rm_dup_bam_dir = "rm_dup_bam"
+bam2bed_dir = "bam2bed"
+tmp_dir = "tmp"
+samtools_n_threads = 40
+samtools_mem = "768M"
+
+mkpath(bam2bed_dir)
+bam_files = YRUtils.BaseUtils.list_files(rm_dup_bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    tmp_name_srt_bam_file = joinpath(tmp_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".name_srt.bam"))
+    bed_file = joinpath(bam2bed_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".bed"))
+
+    cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+        string("samtools sort -n -@ ", samtools_n_threads, " -m ", samtools_mem, " -o ", tmp_name_srt_bam_file, " ", bam_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+        string("bedtools bamtobed -bedpe -i ", tmp_name_srt_bam_file,
+            raw" | awk -v FS='\t' -v OFS='\t' '$1 == $4 && $6 - $2 < 1000 {print $0}' ",
+            raw" | cut -f 1,2,6 | sort -k1,1 -k2,2n -k3,3n > ", bed_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm(tmp_name_srt_bam_file)
+end
+```
+
+### Aggregate fragments into bin counts
+
+```{julia}
+# We use the middle point of each fragment to infer which bin this fragment belongs to.
+# Calculate stategy:
+# w - window size (e.g. 500)
+# $1 - seqname
+# $2 - start
+# $3 - end
+# int() - round down
+# int(($2 + $3)/(2*w))*w + w/2
+# e.g. all middle points belonging to the left-closed interval [1000, 1500) will have the same quotient 2 by dividing 500,
+# and then, by multiplying 500, and then, by adding 500/2, and finally, the quantity is 1250.
+# Finally we use the vaule 1250 to represent all middle points belonging to [1000, 1500),
+# and then we just need to count the number of 1250 to know how many fragments are enriched in the interval [1000, 1500)
+
+using YRUtils
+
+bam2bed_dir = "bam2bed"
+bin_width = 500
+
+bed_files = YRUtils.BaseUtils.list_files(bam2bed_dir, r"\.bed$", recursive=false, full_name=true)
+for bed_file in bed_files
+    frag_bin_count_file = joinpath(bam2bed_dir, replace(basename(bed_file), r"\.bed$" => string(".bin", bin_width, ".tsv")))
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", bed_file, " | awk -v w=", bin_width,
+                raw" -v FS='\t' -v OFS='\t' '{print $1, int(($2 + $3)/(2*w))*w + w/2}' ",
+                raw" | sort -k1,1V -k2,2n | uniq -c | awk -v OFS='\t' '{print $2,$3,$1}' ",
+                " | sort -k1,1V -k2,2n > ", frag_bin_count_file)]),
+    )
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+end
+```
+
+### Assess the reproducibility of replicates
+
+```{r}
+# At this step, we convert raw counts to Counts Per Million (CPM) to normalize the sequencing depth
+library(tidyverse)
+library(vroom)
+library(psych)
+library(FactoMineR)
+library(ggforce)
+library(ggprism)
+library(ggalign)
+library(YRUtils)
+
+bam2bed_dir <- "bam2bed"
+qc_dir <- "qc"
+bin_width <- 500
+cpm_th <- 1
+
+dir.create(qc_dir, showWarnings = FALSE, recursive = FALSE)
+files <- list.files(bam2bed_dir, pattern = paste0("\\.bin", bin_width, "\\.tsv$"), full.names = TRUE, recursive = FALSE)
+df <- tibble()
+for (file in files) {
+    tmp_df <- vroom(file, col_names = c("seqname", "mid_point", "count")) %>%
+        mutate(
+            id = paste0(seqname, ":", mid_point),
+            sample = gsub("\\.\\w+\\.tsv$", "", basename(file))
+        ) %>%
+        select(id, count, sample)
+    df <- bind_rows(df, tmp_df)
+}
+df <- df %>%
+    group_by(sample) %>%
+    mutate(cpm = count / sum(count) * 1e6) %>%
+    pivot_wider(id_cols = "id", names_from = "sample", values_from = "cpm", values_fill = 0) %>%
+    select(-all_of("id"))
+df <- log2(df[rowSums(df >= cpm_th) >= 1, ] + 1)
+
+# Correlation
+cor_res <- corr.test(df, use = "pairwise", method = "pearson", adjust = "BH")
+
+p <- ggheatmap(
+    cor_res$r,
+    width = ncol(cor_res$r) * unit(10, "mm"),
+    height = nrow(cor_res$r) * unit(10, "mm")
+) +
+    scheme_align(free_spaces = "t") +
+    scale_fill_gradient2(
+        low = "blue", mid = "white", high = "red",
+        midpoint = 0, limits = c(-1, 1),
+        breaks = c(-1, -0.5, 0, 0.5, 1)
+    ) +
+    labs(fill = "R") +
+    guides(x = guide_axis(angle = 45)) +
+    theme(
+        text = element_text(size = 20, family = "Arial", color = "black"),
+        axis.text = element_text(size = 20, family = "Arial", color = "black")
+    ) +
+    anno_top() +
+    ggalign(
+        data = gsub("_rep\\d+$", "", colnames(cor_res$r)),
+        size = unit(4, "mm")
+    ) +
+    geom_tile(aes(y = 1, fill = factor(value))) +
+    scale_y_continuous(breaks = NULL, name = NULL, expand = expansion(0)) +
+    labs(fill = "Sample") +
+    theme(
+        text = element_text(size = 20, family = "Arial", color = "black"),
+        axis.text = element_text(size = 20, family = "Arial", color = "black")
+    ) +
+    with_quad(scheme_align(guides = "t"), NULL)
+ppreview(p, file = file.path(qc_dir, paste0("correlation.bin", bin_width, ".pdf")))
+
+# PCA
+pca <- PCA(t(df), ncp = 10, scale.unit = TRUE, graph = FALSE)
+
+pca_coord <- as.data.frame(pca$ind$coord)
+pca_coord$sample <- row.names(pca_coord)
+pca_coord$group <- factor(gsub("_rep\\d+$", "", pca_coord$sample))
+pca_eig <- as.data.frame(pca$eig)
+
+p <- ggplot(pca_coord, aes(Dim.1, Dim.2)) +
+    geom_point(aes(color = group), size = 4) +
+    xlab(paste0("PC1 (", round(pca_eig["comp 1", "percentage of variance"]), "%)")) +
+    ylab(paste0("PC2 (", round(pca_eig["comp 2", "percentage of variance"]), "%)")) +
+    geom_mark_ellipse(aes(fill = group), color = NA, alpha = 0.25) +
+    theme_prism(base_family = "Arial", border = TRUE, base_size = 20)
+ppreview(p, file = file.path(qc_dir, paste0("pca.bin", bin_width, ".pdf")))
+```
+
+## Plot signal enrichment profile
+
+If controls are far more enriched than treatments, you may need to call peaks of treatments without using controls.
+
+You can try to call peaks of controls and to explore the reason why these regions are enriched (maybe you should remove these regions from peaks of treatments if needed).
+
+```{julia}
+using YRUtils
+
+rm_dup_bam_dir = "rm_dup_bam"
+qc_dir = "qc"
+sambamba_n_threads = 40
+deeptools_n_threads = 40
+map_qual = 30
+bin_size = 500
+
+bam_files = YRUtils.BaseUtils.list_files(rm_dup_bam_dir, r"\.bam$", recursive=false, full_name=true)
+YRUtils.BioUtils.bam_index(bam_files, sambamba_n_threads)
+cmd = Cmd(
+    string.(["/usr/bin/bash", "-e", "-c",
+        string("plotFingerprint -b ", join(bam_files, " "),
+            " --labels ", join(replace.(basename.(bam_files), r"\.\w+\.bam$" => ""), " "),
+            " --outQualityMetrics ", joinpath(qc_dir, "plotfingerprint_quality_metrics.log"),
+            " --skipZeros --minMappingQuality ", map_qual,
+            " --numberOfProcessors ", deeptools_n_threads,
+            " --binSize ", bin_size,
+            " --plotFile ", joinpath(qc_dir, "plotfingerprint.pdf"),
+            " --outRawCounts ", joinpath(qc_dir, "plotfingerprint.tsv"))]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+```
+
+## Convert BAM into BigWig
+
+```{julia}
+using YRUtils
+
+rm_dup_bam_dir = "rm_dup_bam"
+bam2bw_dir = "bam2bw"
+deeptools_n_threads = 40
+map_qual = 30
+bin_size = 10
+norm_method = "RPKM"
+effective_genome_size = 3372855573
+
+mkpath(bam2bw_dir)
+bam_files = YRUtils.BaseUtils.list_files(rm_dup_bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    bw_file = joinpath(bam2bw_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".bw"))
+    if !isfile(bw_file)
+        cmd = Cmd(
+            string.(["/usr/bin/bash", "-e", "-c",
+                string("bamCoverage -b ", bam_file, " -o ", bw_file,
+                    " --numberOfProcessors ", deeptools_n_threads,
+                    " --binSize ", bin_size,
+                    " --normalizeUsing ", norm_method,
+                    " --effectiveGenomeSize ", effective_genome_size,
+                    " --minMappingQuality ", map_qual,
+                    " --extendReads")]))
+        @info string("running ", cmd, " ...")
+        run(cmd; wait=true)
+    end
+end
+```
+
+## Plot TSS enrichment profile
+
+### Extract transcription start sites
+
+```{r}
+library(tidyverse)
+library(rtracklayer)
+library(vroom)
+
+gff_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.gtf.gz"
+gff_format <- "gtf"
+seq_type <- "transcript"
+id_col <- "transcript_id"
+
+gff <- import(gff_file, format = gff_format) %>%
+    as.data.frame() %>%
+    as_tibble()
+df <- gff %>%
+    filter(type == seq_type) %>%
+    mutate(
+        tss_start = if_else(strand == "-", end, start - 1),
+        tss_end = if_else(strand == "-", end + 1, start),
+        score = 0
+    ) %>%
+    select(all_of(c("seqnames", "tss_start", "tss_end", id_col, "score", "strand"))) %>%
+    distinct()
+vroom_write(df,
+    file = gsub("\\.\\w+(\\.gz)*$", ".transcription_start_sites.bed", gff_file),
+    col_names = FALSE, append = FALSE
+)
+```
+
+### Plot TSS enrichment profile
+
+```{julia}
+using YRUtils
+
+bam2bw_dir = "bam2bw"
+tss_file = "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.transcription_start_sites.bed"
+qc_dir = "qc"
+deeptools_n_threads = 40
+bin_size = 10
+before_length = 2000
+after_length = 2000
+
+bw_files = YRUtils.BaseUtils.list_files(bam2bw_dir, r"\.bw$", recursive=false, full_name=true)
+for bw_file in bw_files
+    tss_cov_mat_file = joinpath(bam2bw_dir, replace(basename(bw_file), r"\.bw$" => ".mat.txt"))
+    tss_cov_mat_gz = joinpath(bam2bw_dir, replace(basename(bw_file), r"\.bw$" => ".mat.txt.gz"))
+    tss_cov_heatmap_pdf = joinpath(qc_dir, replace(basename(bw_file), r"\.bw$" => ".heatmap.pdf"))
+    tss_cov_profile_pdf = joinpath(qc_dir, replace(basename(bw_file), r"\.bw$" => ".profile.pdf"))
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("computeMatrix reference-point --referencePoint TSS --numberOfProcessors ", deeptools_n_threads,
+                " -S ", bw_file, " -R ", tss_file, " --binSize ", bin_size,
+                " --beforeRegionStartLength ", before_length, " --afterRegionStartLength ", after_length,
+                " --skipZeros --samplesLabel ", replace(basename(bw_file), r"\.bw$" => ""),
+                " --outFileNameMatrix ", tss_cov_mat_file, " --outFileName ", tss_cov_mat_gz)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("plotHeatmap -m ", tss_cov_mat_gz, " -o ", tss_cov_heatmap_pdf,
+                " --dpi 300 --samplesLabel ", replace(basename(bw_file), r"\.bw$" => ""))]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("plotProfile -m ", tss_cov_mat_gz, " -o ", tss_cov_profile_pdf,
+                " --dpi 300 --samplesLabel ", replace(basename(bw_file), r"\.bw$" => ""))]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+end
+```
+
+## Call peaks with MACS
+
+### Pairwise merging of biological replicates
+
+e.g. if you have three biological replicates for a sample, you will get three pooled BAM files: `rep1_vs_rep2`, `rep1_vs_rep3`, and `rep2_vs_rep3`.
+
+```{julia}
+using YRUtils
+using Combinatorics
+using NaturalSort
+
+rm_dup_bam_dir = "rm_dup_bam"
+samtools_n_threads = 40
+sambamba_n_threads = 40
+
+bam_files = YRUtils.BaseUtils.list_files(rm_dup_bam_dir, r"\.bam$", recursive=false, full_name=true)
+dict = Dict{String,Vector{String}}()
+for bam_file in bam_files
+    sample = replace(basename(bam_file), r"_rep\d+\.\w+\.bam$" => "")
+    if !haskey(dict, sample)
+        dict[sample] = [bam_file]
+    else
+        push!(dict[sample], bam_file)
+    end
+end
+for sample in keys(dict)
+    combns = collect(combinations(dict[sample], 2))
+    for combn in combns
+        cmd = Cmd(
+            string.(["/usr/bin/bash", "-e", "-c",
+                string("samtools merge -t ", samtools_n_threads,
+                    " -o ", joinpath(rm_dup_bam_dir,
+                        string(join(sort(replace.(basename.(combn), r"\.\w+\.bam$" => ""), lt=natural), "_vs_"),
+                            ".rm_dup.bam")),
+                    " ", join(combn, " "))]))
+        @info string("running ", cmd, " ...")
+        run(cmd; wait=true)
+    end
+end
+bam_files = YRUtils.BaseUtils.list_files(rm_dup_bam_dir, r"\.bam$", recursive=false, full_name=true)
+YRUtils.BioUtils.bam_index(bam_files, sambamba_n_threads)
+```
+
+### Call peaks with MACS
+
+If you want to perform IDR analysis, then use a relax threshold (e.g. `p-value = 0.01`) is suitable.
+
+If you only want to perform naive overlapping, then use a stringent threshold (e.g. `q-value = 0.05`) is suitable.
+
+#### Call peaks with controls (using p-value)
+
+```{julia}
+# Whether you use the --SPMR flag or not,
+# MACS will normalize the data internally to call peaks.
+# The --SPMR flag only affects the signal track produced.
+# With the flag present, the signal will be normalized to reads per million,
+# this is for comparison with other samples which have been sequenced in different depths.
+# The option --SPMR only affects the bedGraph output.
+rm_dup_bam_dir = "rm_dup_bam"
+tmp_dir = "tmp"
+peak_with_ctl_dir = "peak_with_ctl_pval0.01"
+effective_genome_size = 2652684646
+pvalue = 0.01
+cap_num = 1000000
+chrsz = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+# [["control1", "treatment1"], ["control2", "treatment2"], ...]
+ctl_treat_pairs = [
+    ["IgG_rep1.rm_dup.bam", "Satb2_rep1.rm_dup.bam"],
+    ["IgG_rep2.rm_dup.bam", "Satb2_rep2.rm_dup.bam"],
+    ["IgG_rep3.rm_dup.bam", "Satb2_rep3.rm_dup.bam"],
+    ["IgG_rep1_vs_IgG_rep2.rm_dup.bam", "Satb2_rep1_vs_Satb2_rep2.rm_dup.bam"],
+    ["IgG_rep1_vs_IgG_rep3.rm_dup.bam", "Satb2_rep1_vs_Satb2_rep3.rm_dup.bam"],
+    ["IgG_rep2_vs_IgG_rep3.rm_dup.bam", "Satb2_rep2_vs_Satb2_rep3.rm_dup.bam"],
+]
+
+mkpath(peak_with_ctl_dir)
+for ctl_treat_pair in ctl_treat_pairs
+    prefix = join(reverse(replace.(ctl_treat_pair, r"\.\w+\.bam$" => "")), "_vs_")
+    macs_peak_file = joinpath(peak_with_ctl_dir, string(prefix, "_peaks.narrowPeak"))
+    final_peak_file = joinpath(peak_with_ctl_dir, string(prefix, ".pval", pvalue, ".narrowPeak.gz"))
+    tmp_peak_file1 = joinpath(tmp_dir, string(prefix, ".tmp1"))
+    tmp_peak_file2 = joinpath(tmp_dir, string(prefix, ".tmp2"))
+    tmp_peak_file3 = joinpath(tmp_dir, string(prefix, ".tmp3"))
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("macs3 callpeak ",
+                " -c ", joinpath(rm_dup_bam_dir, ctl_treat_pair[1]),
+                " -t ", joinpath(rm_dup_bam_dir, ctl_treat_pair[2]),
+                " -g ", effective_genome_size,
+                " -n ", prefix,
+                " --outdir ", peak_with_ctl_dir,
+                " --tempdir ", tmp_dir,
+                " -p ", pvalue,
+                " -f BAMPE --keep-dup all -B --SPMR --call-summits")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    # Sort by Column 8 in descending order and replace long peak names in Column 4 with Peak_<rank>
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("LC_COLLATE=C sort -k 8gr,8gr ", macs_peak_file,
+                raw""" | awk -v FS="\t" -v OFS="\t" '{$4="Peak_"NR; if ($2<0) $2=0; if ($3<0) $3=0; if ($10==-1) $10=$2+int(($3-$2+1)/2.0); print $0}' > """, tmp_peak_file1)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("head -n ", cap_num, " ", tmp_peak_file1, " > ", tmp_peak_file2)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedClip ", tmp_peak_file2, " ", chrsz, " ", tmp_peak_file3, " -truncate -verbose=2")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", tmp_peak_file3, " | pigz -nc > ", final_peak_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm.([tmp_peak_file1, tmp_peak_file2, tmp_peak_file3])
+end
+```
+
+#### Call peaks with controls (using q-value)
+
+```{julia}
+# Whether you use the --SPMR flag or not,
+# MACS will normalize the data internally to call peaks.
+# The --SPMR flag only affects the signal track produced.
+# With the flag present, the signal will be normalized to reads per million,
+# this is for comparison with other samples which have been sequenced in different depths.
+# The option --SPMR only affects the bedGraph output.
+rm_dup_bam_dir = "rm_dup_bam"
+tmp_dir = "tmp"
+peak_with_ctl_dir = "peak_with_ctl_qval0.05"
+effective_genome_size = 2652684646
+qvalue = 0.05
+cap_num = 1000000
+chrsz = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+# [["control1", "treatment1"], ["control2", "treatment2"], ...]
+ctl_treat_pairs = [
+    ["IgG_rep1.rm_dup.bam", "Satb2_rep1.rm_dup.bam"],
+    ["IgG_rep2.rm_dup.bam", "Satb2_rep2.rm_dup.bam"],
+    ["IgG_rep3.rm_dup.bam", "Satb2_rep3.rm_dup.bam"],
+    ["IgG_rep1_vs_IgG_rep2.rm_dup.bam", "Satb2_rep1_vs_Satb2_rep2.rm_dup.bam"],
+    ["IgG_rep1_vs_IgG_rep3.rm_dup.bam", "Satb2_rep1_vs_Satb2_rep3.rm_dup.bam"],
+    ["IgG_rep2_vs_IgG_rep3.rm_dup.bam", "Satb2_rep2_vs_Satb2_rep3.rm_dup.bam"],
+]
+
+mkpath(peak_with_ctl_dir)
+for ctl_treat_pair in ctl_treat_pairs
+    prefix = join(reverse(replace.(ctl_treat_pair, r"\.\w+\.bam$" => "")), "_vs_")
+    macs_peak_file = joinpath(peak_with_ctl_dir, string(prefix, "_peaks.narrowPeak"))
+    final_peak_file = joinpath(peak_with_ctl_dir, string(prefix, ".qval", qvalue, ".narrowPeak.gz"))
+    tmp_peak_file1 = joinpath(tmp_dir, string(prefix, ".tmp1"))
+    tmp_peak_file2 = joinpath(tmp_dir, string(prefix, ".tmp2"))
+    tmp_peak_file3 = joinpath(tmp_dir, string(prefix, ".tmp3"))
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("macs3 callpeak ",
+                " -c ", joinpath(rm_dup_bam_dir, ctl_treat_pair[1]),
+                " -t ", joinpath(rm_dup_bam_dir, ctl_treat_pair[2]),
+                " -g ", effective_genome_size,
+                " -n ", prefix,
+                " --outdir ", peak_with_ctl_dir,
+                " --tempdir ", tmp_dir,
+                " -q ", qvalue,
+                " -f BAMPE --keep-dup all -B --SPMR --call-summits")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    # Sort by Column 8 in descending order and replace long peak names in Column 4 with Peak_<rank>
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("LC_COLLATE=C sort -k 8gr,8gr ", macs_peak_file,
+                raw""" | awk -v FS="\t" -v OFS="\t" '{$4="Peak_"NR; if ($2<0) $2=0; if ($3<0) $3=0; if ($10==-1) $10=$2+int(($3-$2+1)/2.0); print $0}' > """, tmp_peak_file1)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("head -n ", cap_num, " ", tmp_peak_file1, " > ", tmp_peak_file2)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedClip ", tmp_peak_file2, " ", chrsz, " ", tmp_peak_file3, " -truncate -verbose=2")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", tmp_peak_file3, " | pigz -nc > ", final_peak_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm.([tmp_peak_file1, tmp_peak_file2, tmp_peak_file3])
+end
+```
+
+#### Call peaks without controls (using p-value)
+
+```{julia}
+rm_dup_bam_dir = "rm_dup_bam"
+tmp_dir = "tmp"
+peak_without_ctl_dir = "peak_without_ctl_pval0.01"
+effective_genome_size = 2652684646
+pvalue = 0.01
+cap_num = 1000000
+chrsz = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+treats = [
+    "Satb2_rep1.rm_dup.bam",
+    "Satb2_rep2.rm_dup.bam",
+    "Satb2_rep3.rm_dup.bam",
+    "Satb2_rep1_vs_Satb2_rep2.rm_dup.bam",
+    "Satb2_rep1_vs_Satb2_rep3.rm_dup.bam",
+    "Satb2_rep2_vs_Satb2_rep3.rm_dup.bam",
+]
+
+mkpath(peak_without_ctl_dir)
+for treat in treats
+    prefix = replace(treat, r"\.\w+\.bam$" => "")
+    macs_peak_file = joinpath(peak_without_ctl_dir, string(prefix, "_peaks.narrowPeak"))
+    final_peak_file = joinpath(peak_without_ctl_dir, string(prefix, ".pval", pvalue, ".narrowPeak.gz"))
+    tmp_peak_file1 = joinpath(tmp_dir, string(prefix, ".tmp1"))
+    tmp_peak_file2 = joinpath(tmp_dir, string(prefix, ".tmp2"))
+    tmp_peak_file3 = joinpath(tmp_dir, string(prefix, ".tmp3"))
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("macs3 callpeak ",
+                " -t ", joinpath(rm_dup_bam_dir, treat),
+                " -g ", effective_genome_size,
+                " -n ", prefix,
+                " --outdir ", peak_without_ctl_dir,
+                " --tempdir ", tmp_dir,
+                " -p ", pvalue,
+                " -f BAMPE --keep-dup all -B --SPMR --call-summits")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    # Sort by Column 8 in descending order and replace long peak names in Column 4 with Peak_<rank>
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("LC_COLLATE=C sort -k 8gr,8gr ", macs_peak_file,
+                raw""" | awk -v FS="\t" -v OFS="\t" '{$4="Peak_"NR; if ($2<0) $2=0; if ($3<0) $3=0; if ($10==-1) $10=$2+int(($3-$2+1)/2.0); print $0}' > """, tmp_peak_file1)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("head -n ", cap_num, " ", tmp_peak_file1, " > ", tmp_peak_file2)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedClip ", tmp_peak_file2, " ", chrsz, " ", tmp_peak_file3, " -truncate -verbose=2")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", tmp_peak_file3, " | pigz -nc > ", final_peak_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm.([tmp_peak_file1, tmp_peak_file2, tmp_peak_file3])
+end
+```
+
+#### Call peaks without controls (using q-value)
+
+```{julia}
+rm_dup_bam_dir = "rm_dup_bam"
+tmp_dir = "tmp"
+peak_without_ctl_dir = "peak_without_ctl_qval0.05"
+effective_genome_size = 2652684646
+qvalue = 0.05
+cap_num = 1000000
+chrsz = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+treats = [
+    "Satb2_rep1.rm_dup.bam",
+    "Satb2_rep2.rm_dup.bam",
+    "Satb2_rep3.rm_dup.bam",
+    "Satb2_rep1_vs_Satb2_rep2.rm_dup.bam",
+    "Satb2_rep1_vs_Satb2_rep3.rm_dup.bam",
+    "Satb2_rep2_vs_Satb2_rep3.rm_dup.bam",
+]
+
+mkpath(peak_without_ctl_dir)
+for treat in treats
+    prefix = replace(treat, r"\.\w+\.bam$" => "")
+    macs_peak_file = joinpath(peak_without_ctl_dir, string(prefix, "_peaks.narrowPeak"))
+    final_peak_file = joinpath(peak_without_ctl_dir, string(prefix, ".qval", qvalue, ".narrowPeak.gz"))
+    tmp_peak_file1 = joinpath(tmp_dir, string(prefix, ".tmp1"))
+    tmp_peak_file2 = joinpath(tmp_dir, string(prefix, ".tmp2"))
+    tmp_peak_file3 = joinpath(tmp_dir, string(prefix, ".tmp3"))
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("macs3 callpeak ",
+                " -t ", joinpath(rm_dup_bam_dir, treat),
+                " -g ", effective_genome_size,
+                " -n ", prefix,
+                " --outdir ", peak_without_ctl_dir,
+                " --tempdir ", tmp_dir,
+                " -q ", qvalue,
+                " -f BAMPE --keep-dup all -B --SPMR --call-summits")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    # Sort by Column 8 in descending order and replace long peak names in Column 4 with Peak_<rank>
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("LC_COLLATE=C sort -k 8gr,8gr ", macs_peak_file,
+                raw""" | awk -v FS="\t" -v OFS="\t" '{$4="Peak_"NR; if ($2<0) $2=0; if ($3<0) $3=0; if ($10==-1) $10=$2+int(($3-$2+1)/2.0); print $0}' > """, tmp_peak_file1)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("head -n ", cap_num, " ", tmp_peak_file1, " > ", tmp_peak_file2)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedClip ", tmp_peak_file2, " ", chrsz, " ", tmp_peak_file3, " -truncate -verbose=2")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", tmp_peak_file3, " | pigz -nc > ", final_peak_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm.([tmp_peak_file1, tmp_peak_file2, tmp_peak_file3])
+end
+```
+
+## Naive overlapping
+
+```{julia}
+# [["pooled_peaks", "rep1_peaks", "rep2_peaks", "output_peaks"], ...]
+narrow_peaks = [
+    [
+        "Satb2_rep1_vs_Satb2_rep2.qval0.05.narrowPeak.gz",
+        "Satb2_rep1.qval0.05.narrowPeak.gz",
+        "Satb2_rep2.qval0.05.narrowPeak.gz",
+        "Satb2_rep1_vs_Satb2_rep2.qval0.05.naive_overlap.narrowPeak.gz",
+    ],
+    [
+        "Satb2_rep1_vs_Satb2_rep3.qval0.05.narrowPeak.gz",
+        "Satb2_rep1.qval0.05.narrowPeak.gz",
+        "Satb2_rep3.qval0.05.narrowPeak.gz",
+        "Satb2_rep1_vs_Satb2_rep3.qval0.05.naive_overlap.narrowPeak.gz",
+    ],
+    [
+        "Satb2_rep2_vs_Satb2_rep3.qval0.05.narrowPeak.gz",
+        "Satb2_rep2.qval0.05.narrowPeak.gz",
+        "Satb2_rep3.qval0.05.narrowPeak.gz",
+        "Satb2_rep2_vs_Satb2_rep3.qval0.05.naive_overlap.narrowPeak.gz",
+    ],
+]
+input_dir = "peak_without_ctl_qval0.05"
+output_dir = "naive_overlap_without_ctl_qval0.05"
+
+mkpath(output_dir)
+for narrow_peak in narrow_peaks
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedtools intersect -wo ",
+                " -a ", joinpath(input_dir, narrow_peak[1]),
+                " -b ", joinpath(input_dir, narrow_peak[2]),
+                raw" | awk -v FS='\t' -v OFS='\t' '{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' ",
+                " | cut -f 1-10 | sort -k1,1 -k2,2n | uniq ",
+                " | bedtools intersect -wo ",
+                " -a stdin -b ", joinpath(input_dir, narrow_peak[3]),
+                raw" | awk -v FS='\t' -v OFS='\t' '{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' ",
+                " | cut -f 1-10 | sort -k1,1 -k2,2n | uniq | pigz -nc > ", joinpath(output_dir, narrow_peak[4]))]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+end
+```
+
+## IDR analysis
+
+```{julia}
+# [["pooled_peaks", "rep1_peaks", "rep2_peaks", "output_prefix"], ...]
+narrow_peaks = [
+    [
+        "Satb2_rep1_vs_Satb2_rep2.pval0.01.narrowPeak.gz",
+        "Satb2_rep1.pval0.01.narrowPeak.gz",
+        "Satb2_rep2.pval0.01.narrowPeak.gz",
+        "Satb2_rep1_vs_Satb2_rep2.pval0.01",
+    ],
+    [
+        "Satb2_rep1_vs_Satb2_rep3.pval0.01.narrowPeak.gz",
+        "Satb2_rep1.pval0.01.narrowPeak.gz",
+        "Satb2_rep3.pval0.01.narrowPeak.gz",
+        "Satb2_rep1_vs_Satb2_rep3.pval0.01",
+    ],
+    [
+        "Satb2_rep2_vs_Satb2_rep3.pval0.01.narrowPeak.gz",
+        "Satb2_rep2.pval0.01.narrowPeak.gz",
+        "Satb2_rep3.pval0.01.narrowPeak.gz",
+        "Satb2_rep2_vs_Satb2_rep3.pval0.01",
+    ],
+]
+input_dir = "peak_without_ctl_pval0.01"
+output_dir = "idr_without_ctl_pval0.01"
+chrsz = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+idr_threshold = 0.05
+peak_type = "narrowPeak"
+rank = "p.value"
+
+mkpath(output_dir)
+for narrow_peak in narrow_peaks
+    peak1_file = joinpath(input_dir, narrow_peak[2])
+    peak2_file = joinpath(input_dir, narrow_peak[3])
+    pooled_peak_file = joinpath(input_dir, narrow_peak[1])
+
+    prefix = joinpath(output_dir, string(narrow_peak[4], ".idr", idr_threshold))
+    idr_peak_file = string(prefix, ".", peak_type, ".gz")
+    idr_log_file = string(prefix, ".log")
+    idr_12col_bed_file = string(prefix, ".", peak_type, ".12-col.bed.gz")
+    idr_out_file = string(prefix, ".unthresholded-peaks.txt")
+    idr_tmp_file = string(prefix, ".unthresholded-peaks.txt.tmp")
+    idr_out_gz_file = string(prefix, ".unthresholded-peaks.txt.gz")
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("idr ",
+                " --samples ", peak1_file, " ", peak2_file,
+                " --peak-list ", pooled_peak_file,
+                " --input-file-type ", peak_type,
+                " --output-file ", idr_out_file,
+                "  --rank ", rank,
+                " --soft-idr-threshold ", idr_threshold,
+                " --log-output-file ", idr_log_file,
+                " --plot --use-best-multisummit-IDR")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedClip ", idr_out_file, " ", chrsz, " ", idr_tmp_file, " -truncate -verbose=2")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    if rank == "signal.value"
+        col = 7
+    elseif rank == "p.value"
+        col = 8
+    elseif rank == "q.value"
+        return 9
+    else
+        @error "invalid score ranking method"
+    end
+    minus_log10_threshold = -log10(idr_threshold)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", idr_tmp_file,
+                raw" | awk -v FS='\t' -v OFS='\t' '$12>=", minus_log10_threshold,
+                raw" {if ($2<0) $2=0; print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' ",
+                " | sort -k1,1 -k2,2n | uniq | sort -grk", col, ",", col,
+                " | pigz -nc > ", idr_12col_bed_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("zcat ", idr_12col_bed_file,
+                raw" | awk -v FS='\t' -v OFS='\t' '{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' ",
+                " | pigz -nc > ", idr_peak_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("cat ", idr_tmp_file,
+                " | pigz -nc > ", idr_out_gz_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm.([idr_out_file, idr_tmp_file, idr_12col_bed_file, string(idr_out_file, ".noalternatesummitpeaks.png")])
+end
+```
+
+## Pairwise overlapping statistics
+
+```{r}
+library(bedtoolsr)
+library(vroom)
+library(tidyverse)
+library(ggprism)
+library(YRUtils)
+library(patchwork)
+
+# ["peaks", "peaks", ...]
+narrow_peaks <- c(
+    "Satb2_rep1_vs_Satb2_rep2.pval0.01.naive_overlap.narrowPeak.gz",
+    "Satb2_rep1_vs_Satb2_rep3.pval0.01.naive_overlap.narrowPeak.gz",
+    "Satb2_rep2_vs_Satb2_rep3.pval0.01.naive_overlap.narrowPeak.gz"
+)
+input_dir <- "naive_overlap_without_ctl_pval0.01"
+overlap_stat_dir <- "overlap_stat"
+
+dir.create(overlap_stat_dir)
+combns <- combn(narrow_peaks, 2)
+for (i in seq_len(ncol(combns))) {
+    narrow_peak_pair <- file.path(input_dir, combns[, i])
+    raw_df1 <- vroom(gzfile(narrow_peak_pair[1]), col_names = FALSE) %>%
+        select(X1, X2, X3) %>%
+        arrange(X1, X2, X3) %>%
+        distinct()
+    raw_df2 <- vroom(gzfile(narrow_peak_pair[2]), col_names = FALSE) %>%
+        select(X1, X2, X3) %>%
+        arrange(X1, X2, X3) %>%
+        distinct()
+    overlapped_df <- bt.intersect(
+        a = raw_df1,
+        b = raw_df2,
+        wo = TRUE
+    )
+    overlapped_df1 <- overlapped_df %>%
+        select(V1, V2, V3, V7) %>%
+        arrange(V1, V2, V3) %>%
+        distinct() %>%
+        mutate(
+            percent = V7 / (V3 - V2),
+            interval = cut(percent,
+                breaks = seq(0, 1, 0.1),
+                include.lowest = TRUE,
+                right = TRUE
+            )
+        )
+    overlapped_df2 <- overlapped_df %>%
+        select(V4, V5, V6, V7) %>%
+        arrange(V4, V5, V6) %>%
+        distinct() %>%
+        mutate(
+            percent = V7 / (V6 - V5),
+            interval = cut(percent,
+                breaks = seq(0, 1, 0.1),
+                include.lowest = TRUE,
+                right = TRUE
+            )
+        )
+
+    qc_metrics <- paste0(
+        ">>> ", paste0(gsub("\\.narrowPeak\\.gz$", "", basename(narrow_peak_pair)), collapse = " vs. "), ": \n",
+        ">> ", gsub("\\.narrowPeak\\.gz$", "", basename(narrow_peak_pair[1])), ": \n",
+        "> The number of peaks in total: ", nrow(raw_df1), "\n",
+        "> The number of peaks overlapped: ", nrow(overlapped_df1), "\n",
+        "> Percentage: ", round(nrow(overlapped_df1) / nrow(raw_df1), digits = 4), "\n",
+        ">> ", gsub("\\.narrowPeak\\.gz$", "", basename(narrow_peak_pair[2])), ": \n",
+        "> The number of peaks in total: ", nrow(raw_df2), "\n",
+        "> The number of peaks overlapped: ", nrow(overlapped_df2), "\n",
+        "> Percentage: ", round(nrow(overlapped_df2) / nrow(raw_df2), digits = 4)
+    )
+
+    vroom_write_lines(qc_metrics,
+        file = file.path(
+            overlap_stat_dir,
+            paste0(paste0(gsub("\\.narrowPeak\\.gz$", "", basename(narrow_peak_pair)), collapse = "_vs_"), ".txt")
+        ),
+        append = FALSE
+    )
+
+    p1 <- ggplot(
+        overlapped_df1 %>%
+            group_by(interval) %>%
+            reframe(n = n()) %>%
+            mutate(percent = n / sum(n)),
+        aes(interval, percent)
+    ) +
+        geom_bar(stat = "identity") +
+        scale_y_continuous(
+            expand = expansion(0),
+            limits = c(0, 1)
+        ) +
+        guides(x = guide_axis(angle = 30)) +
+        labs(title = "1 vs. 2") +
+        theme_prism()
+
+    p2 <- ggplot(
+        overlapped_df2 %>%
+            group_by(interval) %>%
+            reframe(n = n()) %>%
+            mutate(percent = n / sum(n)),
+        aes(interval, percent)
+    ) +
+        geom_bar(stat = "identity") +
+        scale_y_continuous(
+            expand = expansion(0),
+            limits = c(0, 1)
+        ) +
+        guides(x = guide_axis(angle = 30)) +
+        labs(title = "2 vs. 1") +
+        theme_prism()
+
+    ppreview(p1 | p2, file = file.path(
+        overlap_stat_dir,
+        paste0(paste0(gsub("\\.narrowPeak\\.gz$", "", basename(narrow_peak_pair)), collapse = "_vs_"), ".pdf")
+    ))
+}
+
+```
+
+## Generate signal tracks with MACS
+
+```{julia}
+using YRUtils
+
+bdg_dir = "peak_without_ctl_qval0.05"
+chrsz = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+
+bdg_files = YRUtils.BaseUtils.list_files(bdg_dir, r"\.bdg$", recursive=false, full_name=true)
+samples = unique(replace.(basename.(bdg_files), r"(_control_lambda|_treat_pileup).bdg$" => ""))
+for sample in samples
+    bdg_prefix = joinpath(bdg_dir, sample)
+    treat_bdg_file = string(bdg_prefix, "_treat_pileup.bdg")
+    ctl_bdg_file = string(bdg_prefix, "_control_lambda.bdg")
+    fc_bdg_file = string(bdg_prefix, ".fc.signal.bdg")
+    fc_srt_bdg_file = string(bdg_prefix, ".fc.signal.srt.bdg")
+    fc_bw_file = string(bdg_prefix, ".fc.signal.bw")
+
+    # For fold enrichment signal tracks
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("macs3 bdgcmp ",
+                " -t ", treat_bdg_file,
+                " -c ", ctl_bdg_file,
+                " --o-prefix ", bdg_prefix,
+                " -m FE")]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedtools slop -i ", string(bdg_prefix, "_FE.bdg"), " -g ", chrsz, " -b 0 ",
+                " | bedClip stdin ", chrsz, " ", fc_bdg_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    # Sort and remove any overlapping regions in bedgraph by comparing two lines in a row
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("LC_COLLATE=C sort -k1,1 -k2,2n ", fc_bdg_file,
+                raw" | awk -v OFS='\t' '{if (NR==1 || NR>1 && (prev_chr!=$1 || prev_chr==$1 && prev_chr_e<=$2)) {print $0}; prev_chr=$1; prev_chr_e=$3;}' > ", fc_srt_bdg_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    cmd = Cmd(
+        string.(["/usr/bin/bash", "-e", "-c",
+            string("bedGraphToBigWig ", fc_srt_bdg_file, " ", chrsz, " ", fc_bw_file)]))
+    @info string("running ", cmd, " ...")
+    run(cmd; wait=true)
+
+    rm.([fc_bdg_file, fc_srt_bdg_file, treat_bdg_file, ctl_bdg_file, string(bdg_prefix, "_FE.bdg")])
+end
+```
+
+## Extending peaks on both sides from summits
+
+```{r}
+library(bedtoolsr)
+library(vroom)
+library(tidyverse)
+
+extend_width <- 250
+merge_dist <- 10
+chrsz_file <- "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+peak_files <- c(
+    "idr_without_ctl_pval0.01/Satb2_rep1_vs_Satb2_rep2.pval0.01.idr0.05.narrowPeak.gz",
+    "idr_without_ctl_pval0.01/Satb2_rep1_vs_Satb2_rep3.pval0.01.idr0.05.narrowPeak.gz",
+    "idr_without_ctl_pval0.01/Satb2_rep2_vs_Satb2_rep3.pval0.01.idr0.05.narrowPeak.gz"
+)
+
+chrsz <- vroom(chrsz_file, col_names = FALSE)
+for (peak_file in peak_files) {
+    tmp_df <- vroom(gzfile(peak_file), col_names = FALSE) %>%
+        mutate(
+            summit_seqname = X1,
+            summit_start = X2 + X10,
+            summit_end = summit_start,
+        ) %>%
+        select(summit_seqname, summit_start, summit_end) %>%
+        arrange(summit_seqname, summit_start, summit_end) %>%
+        distinct()
+    df <- bt.slop(i = tmp_df, g = chrsz, b = extend_width) %>%
+        distinct() %>%
+        arrange(V1, V2, V3)
+    df <- bt.merge(df, d = merge_dist) %>%
+        mutate(
+            V4 = paste0(V1, ":", V2, "-", V3),
+            V5 = 1000,
+            V6 = "+"
+        )
+    vroom_write(df,
+        file = gsub("\\.narrowPeak\\.gz$", paste0(".summits.b", 2 * extend_width, ".bed"), peak_file),
+        col_names = FALSE,
+        append = FALSE
+    )
+}
+```
+
+## Generate final peak sets
+
+**Scheme 1: (recommended)**
+
+1. Call peaks with MACS using `p-value = 0.05`
+
+2. Perform pairwise IDR analysis using `idr threshold = 0.05`
+
+3. Merge peaks belonging to the same sample and merge peaks extended from summits belonging to the same sample
+
+**Scheme 2:**
+
+1. Call peaks with MACS using `q-value = 0.05`
+
+2. Perform pairwise naive overlapping
+
+3. Merge peaks belonging to the same sample and merge peaks extended from summits belonging to the same sample
+
+```{r}
+library(bedtoolsr)
+library(vroom)
+library(tidyverse)
+
+merge_dist <- 10
+output_dir <- "final_peak"
+peak_files <- c(
+    "idr_without_ctl_pval0.01/Satb2_rep1_vs_Satb2_rep2.pval0.01.idr0.05.summits.b500.bed",
+    "idr_without_ctl_pval0.01/Satb2_rep1_vs_Satb2_rep3.pval0.01.idr0.05.summits.b500.bed",
+    "idr_without_ctl_pval0.01/Satb2_rep2_vs_Satb2_rep3.pval0.01.idr0.05.summits.b500.bed"
+)
+output_file <- "Satb2.without_ctl.pval0.01.idr0.05.summits.b500.merged.bed"
+
+dir.create(output_dir)
+df <- tibble()
+for (peak_file in peak_files) {
+    df <- bind_rows(
+        df,
+        vroom(gzfile(peak_file), col_names = FALSE) %>%
+            select(X1, X2, X3)
+    )
+}
+df <- distinct(df) %>%
+    arrange(X1, X2, X3)
+df <- bt.merge(df, d = merge_dist) %>%
+    mutate(
+        V4 = paste0(V1, ":", V2, "-", V3),
+        V5 = 1000,
+        V6 = "+"
+    )
+vroom_write(df, file = file.path(output_dir, output_file), col_names = FALSE, append = FALSE)
+```
+
+## De novo motif finding with Homer
+
+### De novo motif finding with Homer
+
+```{julia}
+using YRUtils
+
+output_dir = "/data/users/yangrui/mouse/cuttag_v20250108/final_peak/homer/de_novo/narrow_peak"
+tmp_dir = "/data/users/yangrui/mouse/cuttag_v20250108/tmp"
+# Peak file must have at least six columns
+peak_file = "/data/users/yangrui/mouse/cuttag_v20250108/final_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.bed"
+genome = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt_analysis_set_ENCODE.fasta.gz"
+known_motifs_file = "/data/biodatabase/motifs/all_motifs_rmdup.from_peca2.txt"
+scan_size = "given"
+homer_n_threads = 40
+extra_args = ""
+
+new_peak_file = joinpath(tmp_dir, replace(basename(peak_file), r"\.gz$" => ""))
+cmd = Cmd(
+    string.(["/usr/bin/bash", "-e", "-c",
+        string("zcat -f ", peak_file,
+            raw""" | awk -v FS="\t" -v OFS="\t" '{if ($6==".") {$6="+"}; print $0}' > """, new_peak_file)]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+
+if !isnothing(match(r"\.gz$", genome))
+    new_genome = joinpath(tmp_dir, replace(basename(genome), r"\.gz$" => ""))
+    YRUtils.ShellUtils.pigz(genome, new_genome; decompress=true, keep=true)
+else
+    new_genome = genome
+end
+
+cmd = Cmd(
+    string.(["/usr/bin/bash", "-e", "-c",
+        string("findMotifsGenome.pl ", new_peak_file, " ", new_genome, " ", output_dir,
+            " -size ", scan_size, " -p ", homer_n_threads, " -preparsedDir ", tmp_dir,
+            " ", extra_args, " ", if !isempty(known_motifs_file)
+                string(" -mknown ", known_motifs_file)
+            else
+                ""
+            end)]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+
+cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c", string("rm -rf ", joinpath(tmp_dir, "*"))]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+```
+
+### Finding instances of specific motifs
+
+```{julia}
+using YRUtils
+
+output_dir = "/data/users/yangrui/mouse/cuttag_v20250108/tmp"
+output_file = "motif_instances.txt"
+tmp_dir = "/data/users/yangrui/mouse/cuttag_v20250108/tmp"
+# Peak file must have at least six columns
+peak_file = "/data/users/yangrui/mouse/cuttag_v20250108/final_peak/Satb2.without_ctl.pval0.01.idr0.05.summits.b500.merged.bed"
+genome = "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt_analysis_set_ENCODE.fasta.gz"
+known_motifs_file = "/data/biodatabase/motifs/all_motifs_rmdup.from_peca2.txt"
+scan_size = "given"
+homer_n_threads = 40
+extra_args = ""
+
+new_peak_file = joinpath(tmp_dir, replace(basename(peak_file), r"\.gz$" => ""))
+cmd = Cmd(
+    string.(["/usr/bin/bash", "-e", "-c",
+        string("zcat -f ", peak_file,
+            raw""" | awk -v FS="\t" -v OFS="\t" '{if ($6==".") {$6="+"}; print $0}' > """, new_peak_file)]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+
+if !isnothing(match(r"\.gz$", genome))
+    new_genome = joinpath(tmp_dir, replace(basename(genome), r"\.gz$" => ""))
+    YRUtils.ShellUtils.pigz(genome, new_genome; decompress=true, keep=true)
+else
+    new_genome = genome
+end
+
+cmd = Cmd(
+    string.(["/usr/bin/bash", "-e", "-c",
+        string("findMotifsGenome.pl ", new_peak_file, " ", new_genome, " ", output_dir,
+            " -size ", scan_size, " -p ", homer_n_threads, " -preparsedDir ", tmp_dir,
+            " -find ", known_motifs_file, " ", extra_args, " > ", joinpath(output_dir, output_file))]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+
+cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c", string("rm -rf ", joinpath(tmp_dir, "*"))]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+```
+
+## Peak annotation
+
+### Make TxDb object from GFF3/GTF file
+
+```{r}
+library(txdbmaker)
+library(vroom)
+library(tidyverse)
+library(GenomeInfoDb)
+
+anno_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.gtf.gz"
+chrsz_file <- "/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv"
+anno_format <- "gtf"
+organism <- "Mus musculus"
+# Sugar glider (Petaurus breviceps): 34899
+# Mouse (Mus musculus): 10090
+taxonomy_id <- 10090
+genome <- "mm10"
+circular_chrs <- c("chrM")
+
+chrsz <- vroom(chrsz_file, col_names = FALSE)
+seqinfo <- Seqinfo(
+    seqnames = chrsz$X1,
+    seqlengths = chrsz$X2,
+    isCircular = if_else(chrsz$X1 %in% circular_chrs, TRUE, FALSE),
+    genome = genome
+)
+txdb <- makeTxDbFromGFF(
+    file = anno_file,
+    format = anno_format,
+    organism = organism,
+    taxonomyId = taxonomy_id,
+    chrominfo = seqinfo
+)
+# loadDB()
+saveDb(txdb, file = gsub("\\.\\w+(\\.gz)*$", ".TxDb.sqlite", anno_file))
+```
+
+### Profile of peaks binding to TSS/body/TTS regions
+
+```{r}
+library(ChIPseeker)
+library(YRUtils)
+library(AnnotationDbi)
+library(ggprism)
+library(ggplot2)
+
+peak_file <- "/data/users/yangrui/mouse/cuttag_v20250108/final_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.bed"
+txdb_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.TxDb.sqlite"
+peak_anno_dir <- "final_peak/peak_anno/narrow_peak"
+upstream_dist <- 2000
+downstream_dist <- 2000
+by_what <- "gene"
+types <- c("start_site", "body", "end_site")
+nbin <- 400
+
+peak <- readPeakFile(peak_file)
+txdb <- loadDb(txdb_file)
+for (type in types) {
+    profile_p <- plotPeakProf2(
+        peak = peak,
+        upstream = upstream_dist,
+        downstream = downstream_dist,
+        by = by_what,
+        type = type,
+        nbin = if (type == "body") nbin else NULL,
+        TxDb = txdb
+    ) + theme_prism(
+        base_size = 14,
+        base_family = "Arial",
+        border = TRUE
+    )
+
+    profile_p_file <- file.path(
+        peak_anno_dir,
+        gsub(
+            "\\.[a-zA-Z0-9]+$",
+            paste0(".", by_what, ".", type, ".profile.pdf"),
+            basename(peak_file)
+        )
+    )
+    ppreview(profile_p, file = profile_p_file)
+
+    heatmap_p <- peakHeatmap(
+        peak = peak,
+        upstream = upstream_dist,
+        downstream = downstream_dist,
+        by = by_what,
+        type = type,
+        nbin = if (type == "body") nbin else NULL,
+        TxDb = txdb
+    ) + theme(
+        text = element_text(family = "Arial", size = 14)
+    )
+
+    heatmap_p_file <- file.path(
+        peak_anno_dir,
+        gsub(
+            "\\.[a-zA-Z0-9]+$",
+            paste0(".", by_what, ".", type, ".heatmap.pdf"),
+            basename(peak_file)
+        )
+    )
+    ppreview(heatmap_p, file = heatmap_p_file)
+}
+```
+
+### Peak annotation
+
+```{r}
+library(ChIPseeker)
+library(YRUtils)
+library(AnnotationDbi)
+library(ggplot2)
+library(ggprism)
+library(vroom)
+
+peak_file <- "/data/users/yangrui/mouse/cuttag_v20250108/final_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.bed"
+txdb_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.TxDb.sqlite"
+peak_anno_dir <- "final_peak/peak_anno/narrow_peak"
+tss_region <- c(-2000, 2000)
+by_what <- "transcript"
+
+peak <- readPeakFile(peak_file)
+txdb <- loadDb(txdb_file)
+peak_anno <- annotatePeak(
+    peak = peak,
+    tssRegion = tss_region,
+    TxDb = txdb,
+    level = by_what
+)
+
+peak_anno_file <- file.path(
+    peak_anno_dir,
+    gsub(
+        "\\.[a-zA-Z0-9]+$",
+        paste0(".", by_what, ".anno.tsv"),
+        basename(peak_file)
+    )
+)
+vroom_write(as.data.frame(peak_anno),
+    file = peak_anno_file,
+    col_names = TRUE, append = FALSE
+)
+
+peak_anno_stat_df <- getAnnoStat(peak_anno)
+
+pie_p <- ggplot(peak_anno_stat_df, aes(x = "", y = Frequency, fill = Feature)) +
+    geom_col() +
+    coord_polar(theta = "y") +
+    theme_void(base_size = 20, base_family = "Arial")
+
+pie_p_file <- file.path(
+    peak_anno_dir,
+    gsub(
+        "\\.[a-zA-Z0-9]+$",
+        paste0(".", by_what, ".anno_pie.pdf"),
+        basename(peak_file)
+    )
+)
+ppreview(pie_p, file = pie_p_file)
+
+tss_distribution_p <- plotDistToTSS(peak_anno) +
+    labs(title = NULL) +
+    theme_prism(border = TRUE, base_size = 20, base_family = "Arial") +
+    theme(legend.title = element_text())
+
+tss_distribution_p_file <- file.path(
+    peak_anno_dir,
+    gsub(
+        "\\.[a-zA-Z0-9]+$",
+        paste0(".", by_what, ".anno_tss_distribution.pdf"),
+        basename(peak_file)
+    )
+)
+ppreview(tss_distribution_p, file = tss_distribution_p_file)
+```
+
+### Functional enrichment analysis
+
+```{r}
+library(vroom)
+library(magrittr)
+library(clusterProfiler)
+library(AnnotationDbi)
+library(tidyverse)
+
+peak_anno_file <- "/data/users/yangrui/mouse/cuttag_v20250108/final_peak/peak_anno/narrow_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.transcript.anno.tsv"
+mpt_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.trna.ercc.phix.gtf.gz.gene_id_name_mapping_table.tsv"
+orgdb_file <- "/data/biodatabase/species/mm10/genome/anno/org.Mm.eg.db.sqlite"
+
+mpt_df <- vroom(mpt_file) %>%
+    select(gene_id, gene_name) %>%
+    distinct()
+peak_anno_df <- vroom(peak_anno_file) %>%
+    inner_join(mpt_df, by = c("geneId" = "gene_id")) %>%
+    select(seqnames, start, end, V4, V5, V6, gene_name, distanceToTSS) %>%
+    set_colnames(c("seqname", "start", "end", "name", "score", "strand", "gene_name", "dist_to_tss")) %>%
+    distinct()
+vroom_write(peak_anno_df,
+    file = gsub("\\.tsv$", "\\.with_names.tsv", peak_anno_file),
+    col_names = TRUE, append = FALSE
+)
+
+orgdb <- loadDb(orgdb_file)
+ego <- enrichGO(
+    unique(na.omit(peak_anno_df[["gene_name"]])),
+    OrgDb = orgdb,
+    keyType = "SYMBOL",
+    ont = "ALL",
+    pvalueCutoff = 0.05,
+    qvalueCutoff = 0.05,
+    pAdjustMethod = "BH",
+    minGSSize = 10,
+    maxGSSize = 1000,
+    readable = FALSE,
+    pool = FALSE
+)
+ego
+nrow(ego@result)
+saveRDS(ego, file = gsub("\\.tsv$", "\\.GO_ALL.rds", peak_anno_file))
+vroom_write(ego@result,
+    file = gsub("\\.tsv$", "\\.GO_ALL.tsv", peak_anno_file),
+    col_names = TRUE, append = FALSE
+)
+```

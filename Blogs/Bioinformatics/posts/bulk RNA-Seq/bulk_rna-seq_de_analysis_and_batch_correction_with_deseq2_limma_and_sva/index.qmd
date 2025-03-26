@@ -1,0 +1,421 @@
+---
+title: "Bulk RNA-Seq differential expression analysis and batch correction with DESeq2, limma, or sva"
+author: "Rui Yang"
+date: "2025-03-02"
+date-modified: last-modified
+categories: [bulk rna-seq, differential expression, batch correction, deseq2, limma, sva]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+Perform batch correction with DESeq2, limma, or sva.
+
+```{r}
+work_dir <- "/home/yangrui/mywd/wtt_proj"
+
+setwd(work_dir)
+```
+
+## Differential expression analysis with batch correction using DESeq2
+
+```{r}
+library(tximport)
+library(DESeq2)
+library(tidyverse)
+library(vroom)
+
+input_dir <- "transcriptome/rsem_gene_results"
+output_dir <- "transcriptome/merged_degs"
+sample_file <- "transcriptome/rsem_gene_results/genes.sample_sheet.merged.tsv"
+mpt_file <- "/data/biodatabase/species/mRatBN7/genome/anno/Rattus_norvegicus.mRatBN7.2.111.gff3.gz.gene_id_name_mapping_table.tsv"
+tpm_file <- "transcriptome/extracted_rsem_gene_results/gene.TPM.tsv.tsv"
+padj_th <- 0.05
+logfc_th <- 1
+tpm_th <- 1
+
+dir.create(output_dir, recursive = FALSE)
+
+file_df <- tibble(
+    file = list.files(input_dir, pattern = "_rsem\\.genes\\.results$", full.names = TRUE, recursive = FALSE),
+    basename = basename(file)
+)
+sample_df <- vroom(sample_file) %>%
+    inner_join(file_df, by = "basename") %>%
+    mutate(
+        condition = factor(condition),
+        batch = factor(batch)
+    )
+tx.rsem <- tximport(
+    setNames(sample_df[["file"]], sample_df[["sample"]]),
+    type = "rsem", txIn = FALSE, txOut = FALSE
+)
+
+# filter out genes with lengths <= 0
+non_zero_length <- apply(tx.rsem$length, 1, function(x) {
+    all(x > 0)
+})
+
+tx.rsem$abundance <- tx.rsem$abundance[non_zero_length, ]
+tx.rsem$counts <- tx.rsem$counts[non_zero_length, ]
+tx.rsem$length <- tx.rsem$length[non_zero_length, ]
+
+# create DESeqDatatSet
+ddsTxi <- DESeqDataSetFromTximport(
+    txi = tx.rsem,
+    colData = sample_df,
+    design = ~ batch + condition
+)
+
+# keep rows that have at least N reads in total (this is just a simple filtering process and is optional)
+keep <- rowSums(counts(ddsTxi)) >= 10
+ddsTxi <- ddsTxi[keep, ]
+
+condition_levels <- levels(sample_df[["condition"]])
+de_ls <- list(raw = list(), na_filter = list(), unique_symbols = list(), only_degs = list())
+for (ref in condition_levels) {
+    compara_levels <- c(ref, condition_levels[-which(condition_levels == ref)])
+
+    message(paste0("\n\nLevels: ", paste0(compara_levels, collapse = ", ")))
+    message("Baseline: ", ref, "\n")
+
+    # set the reference sample
+    ddsTxi$condition <- factor(ddsTxi$condition, levels = compara_levels)
+    # DE analysis
+    ddsTxi <- DESeq(ddsTxi)
+
+    # get results table
+    res_tabs <- resultsNames(ddsTxi)
+    res_tabs <- res_tabs[str_detect(res_tabs, "^condition_")]
+    message("\n", paste0(res_tabs, collapse = ", "))
+
+    # save pairwise comparisons
+    for (pair in res_tabs) {
+        res <- results(ddsTxi, name = pair)
+        res <- as.data.frame(res)
+        res[["gene_id"]] <- row.names(res)
+        res[["pvalue"]][res[["pvalue"]] == 0] <- .Machine[["double.xmin"]]
+        res[["padj"]][res[["padj"]] == 0] <- .Machine[["double.xmin"]]
+        de_ls[["raw"]][[gsub("^condition_", "", pair)]] <- as_tibble(res)
+    }
+}
+
+# attach gene info
+mpt <- vroom(mpt_file)
+for (pair in names(de_ls[["raw"]])) {
+    de_ls[["raw"]][[pair]] <- inner_join(mpt, de_ls[["raw"]][[pair]],
+        by = "gene_id"
+    )
+}
+
+# filter rows containing NAs
+for (pair in names(de_ls[["raw"]])) {
+    pairs <- str_split(pair, fixed("_vs_"))[[1]]
+    de_ls[["na_filter"]][[pair]] <- de_ls[["raw"]][[pair]] %>%
+        filter(!(is.na(baseMean) | is.na(log2FoldChange) | is.na(pvalue) | is.na(padj))) %>%
+        mutate(diff_flag = if_else(padj < padj_th,
+            if_else(abs(log2FoldChange) > logfc_th,
+                if_else(log2FoldChange > logfc_th,
+                    paste0(pairs[1], " Up"),
+                    paste0(pairs[2], " Up")
+                ),
+                "NO"
+            ),
+            "NO"
+        ))
+}
+
+# filter duplicated gene symbols
+tpm <- vroom(tpm_file)
+for (pair in names(de_ls[["na_filter"]])) {
+    # filtered by TPMs
+    pairs <- str_split(pair, fixed("_vs_"))[[1]]
+    flag <- rep(FALSE, nrow(tpm))
+    for (s in pairs) {
+        tmp_df <- tpm[, filter(sample_df, condition == s) %>% pull(sample) %>% unique()]
+        if (ncol(tmp_df) == 0) {
+            stop("sample columns in TPM are not matched with those used to perform DE analysis")
+        }
+        flag <- flag | (rowSums(tmp_df > tpm_th) == ncol(tmp_df))
+    }
+    tmp_df <- de_ls[["na_filter"]][[pair]] %>%
+        filter(gene_id %in% tpm[["gene_id"]][flag]) %>%
+        mutate(gene_name = if_else(is.na(gene_name), gene_id, gene_name))
+
+    # filtered by gene versions
+    if ("gene_version" %in% names(tmp_df)) {
+        tmp_df <- tmp_df %>%
+            group_by(gene_name) %>%
+            slice_max(gene_version) %>%
+            ungroup()
+    }
+
+    # filtered by baseMean, padj, log2FoldChange
+    # if still duplicated, sample one randomly
+    de_ls[["unique_symbols"]][[pair]] <- tmp_df %>%
+        group_by(gene_name) %>%
+        slice_max(baseMean) %>%
+        slice_min(padj) %>%
+        slice_max(log2FoldChange) %>%
+        slice_sample(n = 1) %>%
+        ungroup()
+}
+
+# keep only DEGs
+for (pair in names(de_ls[["unique_symbols"]])) {
+    de_ls[["only_degs"]][[pair]] <- de_ls[["unique_symbols"]][[pair]] %>%
+        filter(diff_flag != "NO")
+}
+
+# save results to files
+for (category in names(de_ls)) {
+    dir.create(file.path(output_dir, category), recursive = FALSE)
+    for (pair in names(de_ls[[category]])) {
+        vroom_write(de_ls[[category]][[pair]], file = file.path(file.path(output_dir, category), paste0(pair, ".tsv")))
+    }
+}
+```
+
+## Batch correction using limma
+
+```{r}
+library(limma)
+library(vroom)
+library(tidyverse)
+library(magrittr)
+library(FactoMineR)
+library(ggforce)
+library(ggrepel)
+library(ggprism)
+library(YRUtils)
+
+tpm_file <- "transcriptome/extracted_rsem_gene_results/gene.TPM.tsv.tsv"
+sample_file <- "transcriptome/rsem_gene_results/genes.sample_sheet.merged.tsv"
+output_dir <- "transcriptome/limma_batch_corrected"
+tpm_th <- 1
+
+dir.create(output_dir, recursive = FALSE)
+
+sample_df <- vroom(sample_file) %>%
+    mutate(
+        condition = factor(condition),
+        batch = factor(batch)
+    )
+tpm <- vroom(tpm_file) %>%
+    select(all_of(c("gene_id", sample_df[["sample"]]))) %>%
+    as.data.frame() %>%
+    set_rownames(.[["gene_id"]]) %>%
+    select(-gene_id)
+flag <- rep(FALSE, nrow(tpm))
+for (g in unique(sample_df[["group"]])) {
+    tmp_df <- tpm[, filter(sample_df, group == g) %>% pull(sample) %>% unique()]
+    if (ncol(tmp_df) == 0) {
+        stop("sample columns in TPM are not matched with those used to perform DE analysis")
+    }
+    flag <- flag | (rowSums(tmp_df > tpm_th) == ncol(tmp_df))
+}
+tpm <- tpm[flag, ]
+tpm <- log(tpm + 1)
+
+tpm_corrected <- removeBatchEffect(tpm, batch = sample_df[["batch"]], group = sample_df[["condition"]])
+
+vroom_write(
+    tpm %>% mutate(gene_id = row.names(.)) %>% as_tibble(),
+    file = file.path(output_dir, "tpm.th1_log1p.tsv")
+)
+vroom_write(
+    tpm_corrected %>% as.data.frame() %>% mutate(gene_id = row.names(.)) %>% as_tibble(),
+    file = file.path(output_dir, "tpm.th1_log1p.batch_corrected.tsv")
+)
+
+# uncorrected
+pca <- PCA(t(tpm), ncp = 10, scale.unit = TRUE, graph = FALSE)
+
+pca_coord <- as.data.frame(pca$ind$coord)
+pca_coord$sample <- row.names(pca_coord)
+pca_coord <- inner_join(pca_coord, sample_df, by = "sample")
+pca_eig <- as.data.frame(pca$eig)
+
+p <- ggplot(pca_coord, aes(Dim.1, Dim.2)) +
+    geom_point(aes(color = group), size = 2) +
+    geom_text_repel(aes(label = sample),
+        size = 5, max.overlaps = 10000,
+        min.segment.length = 3,
+        family = "Arial"
+    ) +
+    xlab(paste0(
+        "PC1 (",
+        round(pca_eig["comp 1", "percentage of variance"]),
+        "%)"
+    )) +
+    ylab(paste0(
+        "PC2 (",
+        round(pca_eig["comp 2", "percentage of variance"]),
+        "%)"
+    ))
+p <- p + geom_mark_ellipse(aes(fill = group), color = NA, alpha = 0.25)
+p <- p + theme_prism(border = TRUE, base_family = "Arial", base_size = 16) +
+    theme(legend.title = element_text())
+ppreview(p, file = file.path(output_dir, "pca.uncorrected.pdf"))
+
+# batch-corrected
+pca_corrected <- PCA(t(tpm_corrected), ncp = 10, scale.unit = TRUE, graph = FALSE)
+
+pca_coord_corrected <- as.data.frame(pca_corrected$ind$coord)
+pca_coord_corrected$sample <- row.names(pca_coord_corrected)
+pca_coord_corrected <- inner_join(pca_coord_corrected, sample_df, by = "sample")
+pca_eig_corrected <- as.data.frame(pca_corrected$eig)
+
+p <- ggplot(pca_coord_corrected, aes(Dim.1, Dim.2)) +
+    geom_point(aes(color = group), size = 2) +
+    geom_text_repel(aes(label = sample),
+        size = 5, max.overlaps = 10000,
+        min.segment.length = 3,
+        family = "Arial"
+    ) +
+    xlab(paste0(
+        "PC1 (",
+        round(pca_eig_corrected["comp 1", "percentage of variance"]),
+        "%)"
+    )) +
+    ylab(paste0(
+        "PC2 (",
+        round(pca_eig_corrected["comp 2", "percentage of variance"]),
+        "%)"
+    ))
+p <- p + geom_mark_ellipse(aes(fill = group), color = NA, alpha = 0.25)
+p <- p + theme_prism(border = TRUE, base_family = "Arial", base_size = 16) +
+    theme(legend.title = element_text())
+ppreview(p, file = file.path(output_dir, "pca.batch_corrected.pdf"))
+```
+
+## Batch correction using sva
+
+```{r}
+library(sva)
+library(vroom)
+library(tidyverse)
+library(magrittr)
+library(FactoMineR)
+library(ggforce)
+library(ggrepel)
+library(ggprism)
+library(YRUtils)
+
+tpm_file <- "transcriptome/extracted_rsem_gene_results/gene.TPM.tsv.tsv"
+sample_file <- "transcriptome/rsem_gene_results/genes.sample_sheet.merged.tsv"
+output_dir <- "transcriptome/sva_batch_corrected"
+tpm_th <- 1
+
+dir.create(output_dir, recursive = FALSE)
+
+sample_df <- vroom(sample_file) %>%
+    mutate(
+        condition = factor(condition),
+        batch = factor(batch)
+    )
+tpm <- vroom(tpm_file) %>%
+    select(all_of(c("gene_id", sample_df[["sample"]]))) %>%
+    as.data.frame() %>%
+    set_rownames(.[["gene_id"]]) %>%
+    select(-gene_id)
+flag <- rep(FALSE, nrow(tpm))
+for (g in unique(sample_df[["group"]])) {
+    tmp_df <- tpm[, filter(sample_df, group == g) %>% pull(sample) %>% unique()]
+    if (ncol(tmp_df) == 0) {
+        stop("sample columns in TPM are not matched with those used to perform DE analysis")
+    }
+    flag <- flag | (rowSums(tmp_df > tpm_th) == ncol(tmp_df))
+}
+tpm <- tpm[flag, ]
+tpm <- log(tpm + 1)
+
+batch <- sample_df$batch
+mod <- model.matrix(~condition, data = sample_df)
+tpm_corrected <- ComBat(tpm, batch = batch, mod = mod)
+
+vroom_write(
+    tpm %>% mutate(gene_id = row.names(.)) %>% as_tibble(),
+    file = file.path(output_dir, "tpm.th1_log1p.tsv")
+)
+vroom_write(
+    tpm_corrected %>% as.data.frame() %>% mutate(gene_id = row.names(.)) %>% as_tibble(),
+    file = file.path(output_dir, "tpm.th1_log1p.batch_corrected.tsv")
+)
+
+# uncorrected
+pca <- PCA(t(tpm), ncp = 10, scale.unit = TRUE, graph = FALSE)
+
+pca_coord <- as.data.frame(pca$ind$coord)
+pca_coord$sample <- row.names(pca_coord)
+pca_coord <- inner_join(pca_coord, sample_df, by = "sample")
+pca_eig <- as.data.frame(pca$eig)
+
+p <- ggplot(pca_coord, aes(Dim.1, Dim.2)) +
+    geom_point(aes(color = group), size = 2) +
+    geom_text_repel(aes(label = sample),
+        size = 5, max.overlaps = 10000,
+        min.segment.length = 3,
+        family = "Arial"
+    ) +
+    xlab(paste0(
+        "PC1 (",
+        round(pca_eig["comp 1", "percentage of variance"]),
+        "%)"
+    )) +
+    ylab(paste0(
+        "PC2 (",
+        round(pca_eig["comp 2", "percentage of variance"]),
+        "%)"
+    ))
+p <- p + geom_mark_ellipse(aes(fill = group), color = NA, alpha = 0.25)
+p <- p + theme_prism(border = TRUE, base_family = "Arial", base_size = 16) +
+    theme(legend.title = element_text())
+ppreview(p, file = file.path(output_dir, "pca.uncorrected.pdf"))
+
+# batch-corrected
+pca_corrected <- PCA(t(tpm_corrected), ncp = 10, scale.unit = TRUE, graph = FALSE)
+
+pca_coord_corrected <- as.data.frame(pca_corrected$ind$coord)
+pca_coord_corrected$sample <- row.names(pca_coord_corrected)
+pca_coord_corrected <- inner_join(pca_coord_corrected, sample_df, by = "sample")
+pca_eig_corrected <- as.data.frame(pca_corrected$eig)
+
+p <- ggplot(pca_coord_corrected, aes(Dim.1, Dim.2)) +
+    geom_point(aes(color = group), size = 2) +
+    geom_text_repel(aes(label = sample),
+        size = 5, max.overlaps = 10000,
+        min.segment.length = 3,
+        family = "Arial"
+    ) +
+    xlab(paste0(
+        "PC1 (",
+        round(pca_eig_corrected["comp 1", "percentage of variance"]),
+        "%)"
+    )) +
+    ylab(paste0(
+        "PC2 (",
+        round(pca_eig_corrected["comp 2", "percentage of variance"]),
+        "%)"
+    ))
+p <- p + geom_mark_ellipse(aes(fill = group), color = NA, alpha = 0.25)
+p <- p + theme_prism(border = TRUE, base_family = "Arial", base_size = 16) +
+    theme(legend.title = element_text())
+ppreview(p, file = file.path(output_dir, "pca.batch_corrected.pdf"))
+```

@@ -1,0 +1,116 @@
+---
+title: "Misc R code"
+author: "Rui Yang"
+date: "2025-01-02"
+date-modified: last-modified
+categories: [r, misc]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+Used to collect various R code snippets.
+
+## Plot volcano plot in batch
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(magrittr)
+library(ggrepel)
+library(ggprism)
+library(YRUtils)
+
+input_dir <- "/home/yangrui/mywd/wutintin_transcriptome/input"
+output_dir <- "/home/yangrui/mywd/wutintin_transcriptome/output"
+top_n <- 10
+gene_id_column <- "gene_name"
+diff_flag_column <- "diff_flag"
+logfc_column <- "log2FoldChange"
+padj_column <- "padj"
+color_column <- "diff_flag"
+logfc_threshold <- 1
+padj_threshold <- 0.05
+# Up, Down, No
+diff_flag_colors <- c("magenta4", "cyan4", "grey25")
+geom_point_alpha <- 0.5
+geom_point_size <- 2
+geom_line_linewidth <- 1
+geom_line_color <- "grey25"
+geom_line_linetype <- "dashed"
+geom_text_alpha <- 1
+min_segment_length <- 3
+geom_text_size <- 5
+theme_prism_panel_border <- TRUE
+font_family <- "Arial"
+theme_base_font_size <- 16
+
+files <- list.files(input_dir, pattern = "\\.(tsv|txt|csv)$", full.names = TRUE, recursive = FALSE)
+for (file in files) {
+    data <- vroom(file) %>%
+        select(all_of(c(gene_id_column, diff_flag_column, logfc_column, padj_column))) %>%
+        set_colnames(c("gene_id", "diff_flag", "logFC", "padj")) %>%
+        distinct()
+    anno_data <- data %>%
+        filter(diff_flag != "NO") %>%
+        group_by(diff_flag) %>%
+        slice_max(abs(logFC), n = top_n)
+
+    diff_flag_count_table <- count(data, diff_flag) %>%
+        arrange(diff_flag)
+    plot_title <- paste0(paste0(
+        diff_flag_count_table$diff_flag, ": ",
+        diff_flag_count_table$n
+    ), collapse = "\n")
+
+    p <- ggplot(data, aes(logFC, -log10(padj), color = diff_flag)) +
+        geom_point(alpha = geom_point_alpha, size = geom_point_size) +
+        geom_vline(
+            xintercept = c(-logfc_threshold, logfc_threshold),
+            linewidth = geom_line_linewidth,
+            color = geom_line_color,
+            linetype = geom_line_linetype
+        ) +
+        geom_hline(
+            yintercept = -log10(padj_threshold),
+            linewidth = geom_line_linewidth,
+            color = geom_line_color,
+            linetype = geom_line_linetype
+        ) +
+        geom_label_repel(
+            data = anno_data,
+            mapping = aes(logFC, -log10(padj), color = diff_flag, label = gene_id),
+            max.overlaps = 10000, show.legend = FALSE, alpha = geom_text_alpha,
+            min.segment.length = min_segment_length, size = geom_text_size
+        ) +
+        labs(
+            title = plot_title,
+            x = "logFC", y = "-log10(padj)",
+            color = paste0("padj < ", padj_threshold, "\nlogFC > ", logfc_threshold)
+        ) +
+        theme_prism(border = theme_prism_panel_border, base_family = font_family, base_size = theme_base_font_size) +
+        theme(legend.title = element_text()) +
+        scale_color_manual(values = setNames(
+            diff_flag_colors,
+            c(paste0(strsplit(gsub("\\.(tsv|txt|csv)$", "", basename(file)), "_vs_", fixed = TRUE)[[1]], " Up"), "NO")
+        ))
+
+    ppreview(p, file = file.path(output_dir, gsub("\\.(tsv|txt|csv)$", ".pdf", basename(file))))
+}
+```

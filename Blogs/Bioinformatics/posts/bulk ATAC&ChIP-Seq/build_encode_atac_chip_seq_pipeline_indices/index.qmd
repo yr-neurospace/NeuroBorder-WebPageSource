@@ -1,0 +1,98 @@
+---
+title: "Build ENCODE ATAC/ChIP-Seq pipeline indices"
+author: "Rui Yang"
+date: "2025-02-28"
+date-modified: last-modified
+categories: [encode, atac-seq, chip-seq, index]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+For more details, refer to [ENCODE ATAC-Seq pipeline from GitHub](https://github.com/ENCODE-DCC/atac-seq-pipeline), [ENCODE ATAC-Seq pipeline from Google doc](https://docs.google.com/document/d/1f0Cm4vRyDQDu0bMehHD7P7KOMxTOP-HiNoIvL1VcBt8/edit?tab=t.0#heading=h.9ecc41kilcvq), [ENCODE ChIP-Seq pipeline from GitHub](https://github.com/ENCODE-DCC/chip-seq-pipeline2), and [ENCODE ChIP-Seq pipeline from Google doc](https://docs.google.com/document/u/0/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit?pli=1&tab=t.0&authuser=0#heading=h.9ecc41kilcvq).
+
+## Extract mitochondrial genome if present
+
+```{bash}
+pigz -k -c -d Rattus_norvegicus.mRatBN7.2.dna_sm.toplevel.fa.gz | faOneRecord stdin MT > Rattus_norvegicus.mRatBN7.2.dna_sm.toplevel.mito_only.fa
+```
+
+## Prepare Bowtie2 index of species/mitochondrial genome
+
+```{bash}
+#!/usr/bin/bash
+
+ref_fa=/data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_atac_chip_seq/sugarglider.mito_only.fasta.gz
+bowtie2_index_dir=/data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_atac_chip_seq
+bowtie2_index_prefix=mito
+bowtie2_n_threads=60
+tmp_dir=/data/tmp
+
+cd ${bowtie2_index_dir}
+
+if [ ${ref_fa##*.} == "gz" ]
+then
+    new_ref_fa=${tmp_dir}/$(basename ${ref_fa} .gz)
+    pigz -k -c -d ${ref_fa} > ${new_ref_fa}
+else
+    new_ref_fa=${ref_fa}
+fi
+
+bowtie2-build --threads ${bowtie2_n_threads} -f ${new_ref_fa} ${bowtie2_index_prefix}
+
+tar -cvf ${bowtie2_index_prefix}.bt2_index.tar *.bt2
+
+rm *.bt2
+
+if [ ${ref_fa##*.} == "gz" ]
+then
+    rm ${new_ref_fa}
+fi
+```
+
+## Prepare transcription start sites
+
+**Note:** GFF3 is 1-based coordinate system, and BED is 0-based coordinate system.
+
+```{r}
+library(rtracklayer)
+library(vroom)
+library(tidyverse)
+
+gff_file <- "/data/biodatabase/species/mRatBN7/genome/anno/Rattus_norvegicus.mRatBN7.2.111.gff3.gz"
+output_file <- "/data/biodatabase/species/mRatBN7/encode_references/bulk_atac_chip_seq/mRatBN7.tss.bed"
+target <- "gene"
+
+df <- import(gff_file, format = "gff3") %>%
+    as.data.frame() %>%
+    as_tibble()
+df <- df %>%
+    filter(type %in% target) %>%
+    select(seqnames, start, end, strand) %>%
+    mutate(
+        tss_start = if_else(strand %in% c("+", ".", "*"), start - 1, end - 1),
+        tss_end = if_else(strand %in% c("+", ".", "*"), start, end)
+    ) %>%
+    select(seqnames, tss_start, tss_end) %>%
+    arrange(seqnames, tss_start, tss_end) %>%
+    distinct()
+
+vroom_write(df, file = output_file, col_names = FALSE, append = FALSE)
+system2("/usr/bin/pigz", output_file)
+```

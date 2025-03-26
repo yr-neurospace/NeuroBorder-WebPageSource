@@ -1,0 +1,142 @@
+---
+title: "Build ENCODE RNA-Seq pipeline indices"
+author: "Rui Yang"
+date: "2025-02-26"
+date-modified: last-modified
+categories: [encode, rna-seq, index]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+For more details, refer to [ENCODE RNA-Seq pipeline](https://github.com/ENCODE-DCC/rna-seq-pipeline).
+
+## Prepare necessary files
+
+### Convert GFF to GTF
+
+```{bash}
+gffread /data/biodatabase/species/sugar_glider_slb_v1/genome/anno/sugarglider.gff3 -T -o /data/biodatabase/species/sugar_glider_slb_v1/genome/anno/sugarglider.gtf
+```
+
+### Merge annotations if needed
+
+#### Prepare input JSON file
+
+```{bash}
+{
+    "merge_anno.annotation": "gencode.v29.primary_assembly.annotation_UCSC_names.gtf.gz",
+    "merge_anno.tRNA": "gencode.v29.tRNAs.gtf.gz",
+    "merge_anno.spikeins": "ERCC_phiX.fa.gz",
+    "merge_anno.output_filename": "merged_annotation_V29.gtf.gz"
+}
+```
+
+#### Merge annotations
+
+```{bash}
+caper run /data/softwares/encode_pipeline/rna-seq-pipeline_v1.2.4/make_index_wdl/merge_anno.wdl -c /data/softwares/encode_pipeline/caper/local.conf -i merge_anno_input.json --max-concurrent-tasks 2 --singularity
+```
+
+## Build STAR index
+
+### Prepare input JSON file
+
+```{bash}
+{
+    "build_index.reference_sequence": "/data/biodatabase/species/sugar_glider_slb_v1/genome/genome/sugarglider.fasta.gz",
+    "build_index.spikeins": "/data/biodatabase/species/sugar_glider_slb_v1/genome/genome/ERCC_phix.spikeins.fasta.gz",
+    "build_index.annotation": "/data/biodatabase/species/sugar_glider_slb_v1/genome/anno/sugarglider.gtf.gz",
+    "build_index.anno_version": "v1",
+    "build_index.genome": "sugarglider",
+    "build_index.index_type": "prep_star",
+    "build_index.ncpu": 60,
+    "build_index.memGB": 512
+}
+```
+
+### Build STAR index
+
+```{bash}
+caper run /data/softwares/encode_pipeline/rna-seq-pipeline_v1.2.4/make_index_wdl/build_genome_index.wdl -c /data/softwares/encode_pipeline/caper/local.conf -i /data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_rna_seq/star_index_input.json --max-concurrent-tasks 1 --singularity
+```
+
+## Build RSEM index
+
+### Prepare input JSON file
+
+```{bash}
+{
+    "build_index.reference_sequence": "/data/biodatabase/species/sugar_glider_slb_v1/genome/genome/sugarglider.fasta.gz",
+    "build_index.spikeins": "/data/biodatabase/species/sugar_glider_slb_v1/genome/genome/ERCC_phix.spikeins.fasta.gz",
+    "build_index.annotation": "/data/biodatabase/species/sugar_glider_slb_v1/genome/anno/sugarglider.gtf.gz",
+    "build_index.anno_version": "v1",
+    "build_index.genome": "sugarglider",
+    "build_index.index_type": "prep_rsem",
+    "build_index.ncpu": 60,
+    "build_index.memGB": 512
+}
+```
+
+### Build RSEM index
+
+```{bash}
+caper run /data/softwares/encode_pipeline/rna-seq-pipeline_v1.2.4/make_index_wdl/build_genome_index.wdl -c /data/softwares/encode_pipeline/caper/local.conf -i /data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_rna_seq/rsem_index_input.json --max-concurrent-tasks 1 --singularity
+```
+
+## Prepare other files
+
+In most cases, you need to modify the following code to suit yourself.
+
+### Prepare transcript IDs to gene biotypes mapping table
+
+In this example, due to the lack of gene biotype field, we assign all transcripts with the gene biotype "protein_coding".
+
+```{r}
+library(rtracklayer)
+library(tidyverse)
+library(vroom)
+
+gtf_file <- "/data/biodatabase/species/sugar_glider_slb_v1/genome/anno/sugarglider.gtf.gz"
+output_file <- "/data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_rna_seq/sugarglider.v1.transcript_id_to_gene_type.tsv"
+transcript_field <- "transcript"
+transcript_type <- "protein_coding"
+
+df <- as.data.frame(rtracklayer::import(gtf_file, format = "gtf"))
+df <- df %>%
+    filter(type == transcript_field) %>%
+    mutate(transcript_type = transcript_type) %>%
+    select(transcript_id, transcript_type) %>%
+    arrange(transcript_id) %>%
+    distinct()
+vroom_write(df, file = output_file, col_names = FALSE, append = FALSE)
+```
+
+### Prepare gene/transcript IDs to names mapping table
+
+```{r}
+library(YRUtils)
+library(vroom)
+
+gff_file <- "/data/biodatabase/species/sugar_glider_slb_v1/genome/anno/sugarglider.gff3.gz"
+target_type <- "transcript"
+
+df <- extract_gene_id_from_gff(gff_file, target_type = target_type)
+vroom_write(df, file = paste0(gff_file, ".", target_type, "_id_name_mapping_table.tsv"), col_names = TRUE, append = FALSE)
+```

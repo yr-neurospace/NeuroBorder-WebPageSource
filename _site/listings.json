@@ -1,23 +1,17 @@
 [
   {
-    "listing": "/Blogs/Mathematics/index.html",
+    "listing": "/Blogs/Bioinformatics/index.html",
     "items": [
-      "/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_with_julia/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/statistical_inference_concepts_of_binomial_distribution/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/logistic_function/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/trigonometric_functions/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/lorenz_curve_and_gini_index/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/p-p_plot_and_q-q_plot/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/roc_and_auc/index.html",
-      "/Blogs/Mathematics/posts/Probability and Statistics/binomial_distribution_approximatrions/index.html"
-    ]
-  },
-  {
-    "listing": "/Blogs/Galaxy/index.html",
-    "items": [
-      "/Blogs/Galaxy/posts/Shiny/guides_for_neuroborder_shiny_app/index.html",
-      "/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/index.html"
+      "/Blogs/Bioinformatics/posts/bulk RNA-Seq/bulk_rna-seq_de_analysis_and_batch_correction_with_deseq2_limma_and_sva/index.html",
+      "/Blogs/Bioinformatics/posts/bulk ATAC&ChIP-Seq/build_encode_atac_chip_seq_pipeline_indices/index.html",
+      "/Blogs/Bioinformatics/posts/bulk RNA-Seq/build_encode_rna_seq_pipeline_indices/index.html",
+      "/Blogs/Bioinformatics/posts/bulk proteomics/de_related_analysis_for_bulk_proteomics/index.html",
+      "/Blogs/Bioinformatics/posts/MPRA/mpra_analysis_pipeline/index.html",
+      "/Blogs/Bioinformatics/posts/Misc/misc_r_code/index.html",
+      "/Blogs/Bioinformatics/posts/Cut&Tag/cuttag_analysis_pipeline/index.html",
+      "/Blogs/Bioinformatics/posts/bulk RNA-Seq/agilent_mrna_microarray_analysis_using_limma/index.html",
+      "/Blogs/Bioinformatics/posts/bulk RNA-Seq/identify_housekeeping_genes/index.html",
+      "/Blogs/Bioinformatics/posts/bulk RNA-Seq/bulk_rna-seq_pseudotime_analysis/index.html"
     ]
   },
   {
@@ -29,17 +23,31 @@
       "/Blogs/Computer/posts/OS/Windows/configure_mstsc_rdp/index.html",
       "/Blogs/Computer/posts/Programming/R/compile_and_install_r/index.html",
       "/Blogs/Computer/posts/OS/Linux/introduction_to_systemd_service/index.html",
-      "/Blogs/Computer/posts/Programming/Julia/julia_resource_list/index.html",
-      "/Blogs/Computer/posts/Programming/R/r_resource_list/index.html",
       "/Blogs/Computer/posts/Programming/Git/git_syntax_basics/index.html",
-      "/Blogs/Computer/posts/Programming/Julia/julia_syntax_basics/index.html"
+      "/Blogs/Computer/posts/Programming/Julia/julia_resource_list/index.html",
+      "/Blogs/Computer/posts/Programming/Julia/julia_syntax_basics/index.html",
+      "/Blogs/Computer/posts/Programming/R/r_resource_list/index.html"
     ]
   },
   {
-    "listing": "/Blogs/Bioinformatics/index.html",
+    "listing": "/Blogs/Galaxy/index.html",
     "items": [
-      "/Blogs/Bioinformatics/posts/bulk RNA-seq/identify_housekeeping_genes/index.html",
-      "/Blogs/Bioinformatics/posts/bulk RNA-seq/bulk_rna-seq_pseudotime_analysis/index.html"
+      "/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/index.html",
+      "/Blogs/Galaxy/posts/Shiny/guides_for_neuroborder_shiny_app/index.html"
+    ]
+  },
+  {
+    "listing": "/Blogs/Mathematics/index.html",
+    "items": [
+      "/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_with_julia/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/statistical_inference_concepts_of_binomial_distribution/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/logistic_function/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/binomial_distribution_approximatrions/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/lorenz_curve_and_gini_index/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/p-p_plot_and_q-q_plot/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/roc_and_auc/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/trigonometric_functions/index.html"
     ]
   }
 ]

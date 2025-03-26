@@ -1,0 +1,17 @@
+{
+  "hash": "bfa9ec78c4ba9125c1c97a219a37e804",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Build ENCODE ATAC/ChIP-Seq pipeline indices\"\nauthor: \"Rui Yang\"\ndate: \"2025-02-28\"\ndate-modified: last-modified\ncategories: [encode, atac-seq, chip-seq, index]\nformat:\n  html:\n    toc: true\n    toc-depth: 6\n    toc-location: left\n    fig-align: center\n    number-depth: 6\n    number-sections: true\n    fig-cap-location: bottom\n    fig-format: png\n    lightbox: true\n    tbl-cap-location: top\n    page-layout: full\n\nexecute:\n  warning: false\n  eval: false\n---\n\n\n\n\n## Introduction\n\nFor more details, refer to [ENCODE ATAC-Seq pipeline from GitHub](https://github.com/ENCODE-DCC/atac-seq-pipeline), [ENCODE ATAC-Seq pipeline from Google doc](https://docs.google.com/document/d/1f0Cm4vRyDQDu0bMehHD7P7KOMxTOP-HiNoIvL1VcBt8/edit?tab=t.0#heading=h.9ecc41kilcvq), [ENCODE ChIP-Seq pipeline from GitHub](https://github.com/ENCODE-DCC/chip-seq-pipeline2), and [ENCODE ChIP-Seq pipeline from Google doc](https://docs.google.com/document/u/0/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit?pli=1&tab=t.0&authuser=0#heading=h.9ecc41kilcvq).\n\n## Extract mitochondrial genome if present\n\n\n\n\n::: {.cell}\n\n```{.bash .cell-code}\npigz -k -c -d Rattus_norvegicus.mRatBN7.2.dna_sm.toplevel.fa.gz | faOneRecord stdin MT > Rattus_norvegicus.mRatBN7.2.dna_sm.toplevel.mito_only.fa\n```\n:::\n\n\n\n\n## Prepare Bowtie2 index of species/mitochondrial genome\n\n\n\n\n::: {.cell}\n\n```{.bash .cell-code}\n#!/usr/bin/bash\n\nref_fa=/data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_atac_chip_seq/sugarglider.mito_only.fasta.gz\nbowtie2_index_dir=/data/biodatabase/species/sugar_glider_slb_v1/encode_references/bulk_atac_chip_seq\nbowtie2_index_prefix=mito\nbowtie2_n_threads=60\ntmp_dir=/data/tmp\n\ncd ${bowtie2_index_dir}\n\nif [ ${ref_fa##*.} == \"gz\" ]\nthen\n    new_ref_fa=${tmp_dir}/$(basename ${ref_fa} .gz)\n    pigz -k -c -d ${ref_fa} > ${new_ref_fa}\nelse\n    new_ref_fa=${ref_fa}\nfi\n\nbowtie2-build --threads ${bowtie2_n_threads} -f ${new_ref_fa} ${bowtie2_index_prefix}\n\ntar -cvf ${bowtie2_index_prefix}.bt2_index.tar *.bt2\n\nrm *.bt2\n\nif [ ${ref_fa##*.} == \"gz\" ]\nthen\n    rm ${new_ref_fa}\nfi\n```\n:::\n\n\n\n\n## Prepare transcription start sites\n\n**Note:** GFF3 is 1-based coordinate system, and BED is 0-based coordinate system.\n\n\n\n\n::: {.cell}\n\n```{.r .cell-code}\nlibrary(rtracklayer)\nlibrary(vroom)\nlibrary(tidyverse)\n\ngff_file <- \"/data/biodatabase/species/mRatBN7/genome/anno/Rattus_norvegicus.mRatBN7.2.111.gff3.gz\"\noutput_file <- \"/data/biodatabase/species/mRatBN7/encode_references/bulk_atac_chip_seq/mRatBN7.tss.bed\"\ntarget <- \"gene\"\n\ndf <- import(gff_file, format = \"gff3\") %>%\n    as.data.frame() %>%\n    as_tibble()\ndf <- df %>%\n    filter(type %in% target) %>%\n    select(seqnames, start, end, strand) %>%\n    mutate(\n        tss_start = if_else(strand %in% c(\"+\", \".\", \"*\"), start - 1, end - 1),\n        tss_end = if_else(strand %in% c(\"+\", \".\", \"*\"), start, end)\n    ) %>%\n    select(seqnames, tss_start, tss_end) %>%\n    arrange(seqnames, tss_start, tss_end) %>%\n    distinct()\n\nvroom_write(df, file = output_file, col_names = FALSE, append = FALSE)\nsystem2(\"/usr/bin/pigz\", output_file)\n```\n:::\n",
+    "supporting": [
+      "index_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

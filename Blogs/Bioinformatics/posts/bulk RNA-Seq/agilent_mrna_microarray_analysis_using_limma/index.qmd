@@ -1,0 +1,502 @@
+---
+title: "Agilent mRNA microarray analysis using limma"
+author: "Rui Yang"
+date: "2024-09-30"
+date-modified: last-modified
+categories: [agilent, mrna, microarray, limma]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+A little example for how to use limma to analyze Agilent mRNA microarray data.
+
+## Download ferret (Mustela putorius furo, 9669) reference files
+
+```{bash}
+wget -c https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/011/764/305/GCF_011764305.1_ASM1176430v1.1/GCF_011764305.1_ASM1176430v1.1_genomic.fna.gz
+wget -c https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/011/764/305/GCF_011764305.1_ASM1176430v1.1/GCF_011764305.1_ASM1176430v1.1_genomic.gff.gz
+wget -c https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/011/764/305/GCF_011764305.1_ASM1176430v1.1/GCF_011764305.1_ASM1176430v1.1_genomic.gtf.gz
+```
+
+## Extract transcript sequences
+
+```{bash}
+# -w: write a fasta file with spliced exons for each transcript
+gffread -w GCF_011764305.1_ASM1176430v1.1_genomic.transcripts.fna -g GCF_011764305.1_ASM1176430v1.1_genomic.fna GCF_011764305.1_ASM1176430v1.1_genomic.gff
+```
+
+## Build blast database
+
+```{bash}
+makeblastdb -in GCF_011764305.1_ASM1176430v1.1_genomic.transcripts.fna -parse_seqids -taxid 9669 -blastdb_version 5 -title "GCF_011764305.1_ASM1176430v1.1 Ferret (Mustela putorius furo) spliced transcripts" -dbtype nucl
+```
+
+## Prepare mRNA microarray data
+
+```{r}
+library(GEOquery)
+library(limma)
+library(tidyverse)
+library(vroom)
+
+gse_accession <- "GSE60687"
+out_dir <- "./data/microarray"
+
+gse <- getGEO(gse_accession, GSEMatrix = T, getGPL = T)
+sample_df <- gse[[paste0(gse_accession, "_series_matrix.txt.gz")]]@phenoData@data %>%
+    mutate(
+        sample_id = paste0(
+            str_extract_all(description, "A(17|19)", simplify = T), ".",
+            str_extract_all(description, "[A-Z]{2,}", simplify = T), ".",
+            str_extract_all(description, "^\\d", simplify = T),
+            str_extract_all(description, "_2", simplify = T)
+        ),
+        sample_file = file.path(out_dir, paste0(sample_id, ".txt.gz")),
+        wget_cmd = paste0("wget -c -O ", sample_file, " ", supplementary_file)
+    ) %>%
+    arrange(sample_id)
+
+sapply(sample_df$wget_cmd, function(x) {
+    system(x)
+})
+
+vroom_write(sample_df, file = file.path(out_dir, "samples.tsv"))
+
+gpl <- getGEO(gse[[paste0(gse_accession, "_series_matrix.txt.gz")]]@annotation)
+gpl_fna <- filter(gpl@dataTable@table, SPOT_ID != "CONTROL") %>%
+    mutate(fna = paste0(">", ID, ":", COL, ":", ROW, ":", NAME, ":", CONTROL_TYPE, ":", ACCESSION_STRING, ":", CHROMOSOMAL_LOCATION, "\n", SEQUENCE)) %>%
+    pull(fna) %>%
+    unique()
+
+vroom_write(gpl@dataTable@table, file = file.path(out_dir, "gpl.tsv"))
+vroom_write_lines(gpl_fna, file = file.path(out_dir, "gpl.fna"))
+```
+
+## Run `blastn`
+
+```{bash}
+# GPL probe sequences against transcripts
+blastn -task megablast -db ../genome/blastdb/GCF_011764305.1_ASM1176430v1.1_genomic.transcripts.fna -query gpl.fna -outfmt "6 qseqid sseqid evalue bitscore pident qcovs stitle" -dust no -max_target_seqs 1 -num_threads 16 -out gpl.blastn.txt
+```
+
+## Attach gene symbols to GPL probes
+
+```{r}
+library(rtracklayer)
+library(vroom)
+library(tidyverse)
+
+gff_file <- "./data/genome/GCF_011764305.1_ASM1176430v1.1_genomic.gff"
+gpl_blastn_file <- "./data/microarray/gpl.blastn.txt"
+out_dir <- "./data/microarray"
+
+gff <- as.data.frame(import(gff_file, version = "3")) %>%
+    select(all_of(c(
+        "seqnames", "start", "end", "width", "strand",
+        "source", "type", "ID", "Dbxref", "Name", "gbkey",
+        "gene", "gene_biotype", "Parent", "transcript_id"
+    ))) %>%
+    distinct()
+
+gpl_blastn <- vroom(gpl_blastn_file, col_names = c("qseqid", "sseqid", "evalue", "bitscore", "pident", "qcovs", "stitle")) %>%
+    distinct() %>%
+    group_by(qseqid) %>%
+    slice_min(evalue) %>%
+    slice_max(bitscore) %>%
+    slice_max(pident) %>%
+    slice_max(qcovs) %>%
+    ungroup()
+
+table(duplicated(gpl_blastn$qseqid))
+
+df <- left_join(gpl_blastn, gff, by = c("sseqid" = "ID"))
+df <- left_join(df, filter(gff, type == "gene") %>%
+    select(all_of(c("seqnames", "gene", "gene_biotype"))) %>%
+    distinct(),
+by = join_by(seqnames, gene),
+suffix = c(".GPL_blastn", ".Parent_gene")
+)
+
+Dbxref_ls <- lapply(df$Dbxref, function(x) {
+    if (length(x) > 0) {
+        y <- strsplit(x, split = ":", fixed = T) %>%
+            do.call(rbind, .)
+        setNames(y[, 2], y[, 1]) %>%
+            as.list() %>%
+            as.data.frame()
+    } else {
+        data.frame()
+    }
+})
+Dbxref_names <- lapply(Dbxref_ls, names) %>%
+    unlist() %>%
+    unique()
+Dbxref_df <- lapply(Dbxref_ls, function(x) {
+    if (nrow(x) == 0) {
+        setNames(
+            rep(NA, length(Dbxref_names)),
+            Dbxref_names
+        ) %>%
+            as.list() %>%
+            as.data.frame()
+    } else {
+        x
+    }
+}) %>% do.call(bind_rows, .)
+
+names(Dbxref_df) <- paste0("Dbxref_", names(Dbxref_df))
+
+df <- bind_cols(df, Dbxref_df)
+
+vroom_write(df, file = file.path(out_dir, "gpl.with_gene_symbols.tsv"), delim = "\t")
+```
+
+## Differential analysis using limma
+
+```{r}
+library(limma)
+library(vroom)
+library(tidyverse)
+
+sample_file <- "./data/microarray/samples.tsv"
+gpl_file <- "./data/microarray/gpl.with_gene_symbols.tsv"
+out_dir <- "./data/degs"
+
+dir.create(out_dir)
+
+gpl <- vroom(gpl_file, delim = "\t")
+gpl$ProbeName <- sapply(gpl$qseqid, function(x) {
+    strsplit(x, ":")[[1]][4]
+})
+gpl <- gpl %>%
+    select(all_of(c(
+        "ProbeName", "Dbxref_GeneID", "gene",
+        "gene_biotype.GPL_blastn", "gene_biotype.Parent_gene"
+    ))) %>%
+    mutate(GeneBioType = if_else(is.na(gene_biotype.Parent_gene),
+        gene_biotype.GPL_blastn,
+        gene_biotype.Parent_gene
+    )) %>%
+    select(all_of(c("ProbeName", "Dbxref_GeneID", "gene", "GeneBioType"))) %>%
+    distinct()
+names(gpl) <- c("ProbeName", "EntrezID", "Symbol", "GeneBioType")
+
+table(duplicated(gpl$ProbeName))
+
+sample_df <- vroom(sample_file)
+
+# read in data
+# here, we are reading in single-channel Agilent (foreground: median signal; background: median signal) intensity data
+# so source = "agilent" and green.only = T
+# here, we read in the extra column gIsWellAboveBG, which records whether the intensity of each spot is considered above the background level for that array
+x <- read.maimages(
+    gsub(
+        "~/mywd/agilent_mrna_expression_microarray_analysis_using_limma",
+        ".",
+        gsub("\\.gz$", "", sample_df$sample_file)
+    ),
+    source = "agilent", green.only = T,
+    other.columns = "gIsWellAboveBG"
+)
+x_copy <- x
+
+# gene annotation
+x$genes <- left_join(x$genes, gpl, by = "ProbeName")
+all(x$genes$ProbeName == x_copy$genes$ProbeName)
+
+# background correction and normalization
+# at this step, we need control probes to be existed in the dataset
+y <- backgroundCorrect(x, method = "normexp")
+y <- normalizeBetweenArrays(y, method = "quantile")
+
+# gene filtering
+# filter out control probes
+Control <- y$genes$ControlType == 1L
+# filter out probes without Symbol
+NoSymbol <- is.na(y$genes$Symbol)
+# keep probes that express in at least 3 arrays (because there are at least 3 replicates in each array)
+IsExpr <- rowSums(y$other$gIsWellAboveBG > 0) >= 3
+
+yfilt <- y[!Control & !NoSymbol & IsExpr, ]
+
+genes_colnames <- c("EntrezID", "Symbol")
+E_colnames <- colnames(yfilt$E)
+exprMat <- bind_cols(
+    yfilt$genes[, genes_colnames],
+    as.data.frame(yfilt$E)
+)
+exprMat_dedup <- exprMat %>%
+    arrange(Symbol) %>%
+    group_by(EntrezID, Symbol) %>%
+    reframe(across(everything(), mean))
+yfilt$genes <- exprMat_dedup[, genes_colnames]
+yfilt$E <- as.matrix(exprMat_dedup[, E_colnames])
+
+# differential expression
+treatments <- gsub("\\.[_0-9]+$", "", sample_df$sample_id)
+levels <- unique(treatments)
+treatments <- factor(treatments, levels = levels)
+design <- model.matrix(~ 0 + treatments)
+colnames(design) <- levels
+
+fit <- lmFit(yfilt, design = design)
+contrast_pairs <- expand.grid(x = levels, y = levels) %>%
+    mutate(
+        flag = if_else(x != y, T, F),
+        pair = paste0(x, "-", y)
+    ) %>%
+    filter(flag) %>%
+    pull(pair) %>%
+    unique()
+contrast_matrix <- makeContrasts(contrasts = contrast_pairs, levels = design)
+fit2 <- contrasts.fit(fit, contrast_matrix)
+fit2 <- eBayes(fit2, trend = T, robust = T)
+
+for (pair in contrast_pairs) {
+    res <- topTable(fit2, coef = pair, number = Inf, adjust.method = "BH", p.value = 1)
+    vroom_write(res, file = file.path(out_dir, paste0(pair, ".tsv")), delim = "\t")
+}
+```
+
+## Filter DEGs and plot volcanos
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+
+set_fonts()
+
+degs_dir <- "./data/degs"
+out_dir <- "./data/clean_degs/padj0.05_logfc1"
+sig_colors <- c("#FF4757", "#546DE5", "#D2DAE2")
+padj_th <- 0.05
+logfc_th <- 1
+
+dir.create(out_dir, recursive = T)
+
+degs_files <- list.files(degs_dir, pattern = "\\.tsv$", full.names = T, recursive = F)
+for (degs_file in degs_files) {
+    pair <- strsplit(gsub("\\.[a-zA-Z0-9]+$", "", basename(degs_file)),
+        split = "-", fixed = T
+    )[[1]]
+
+    degs_df <- vroom(degs_file, delim = "\t", col_names = T)
+    clean_degs_df <- degs_df %>%
+        group_by(Symbol) %>%
+        slice_min(adj.P.Val, n = 1) %>%
+        slice_max(abs(logFC), n = 1) %>%
+        slice_sample(n = 1) %>%
+        ungroup() %>%
+        mutate(
+            diff_flag = if_else(adj.P.Val < padj_th,
+                if_else(logFC > logfc_th,
+                    paste0(pair[1], " Up"),
+                    if_else(logFC < -logfc_th,
+                        paste0(pair[2], " Up"),
+                        "NO"
+                    )
+                ),
+                "NO"
+            ),
+            diff_flag = factor(diff_flag, levels = c(
+                paste0(pair[1], " Up"),
+                paste0(pair[2], " Up"),
+                "NO"
+            ))
+        )
+
+    vroom_write(clean_degs_df, file = file.path(out_dir, basename(degs_file)))
+
+    if (any(duplicated(clean_degs_df$Symbol))) {
+        stop("Duplicated items still existed after filtering for ", degs_file)
+    }
+
+    diff_counts <- count(clean_degs_df, diff_flag) %>%
+        mutate(show_text = paste0(diff_flag, ": ", n))
+    plot_title <- paste0(
+        paste0(pair, collapse = "_vs_"), "\n",
+        paste0(diff_counts$show_text, collapse = "    ")
+    )
+
+    p <- ggplot(clean_degs_df) +
+        geom_point(aes(logFC, -log10(adj.P.Val), color = diff_flag),
+            alpha = 0.5, size = 2
+        ) +
+        geom_vline(
+            xintercept = c(-logfc_th, logfc_th),
+            linewidth = 1, col = "grey25", linetype = "dashed"
+        ) +
+        geom_hline(
+            yintercept = -log10(padj_th),
+            linewidth = 1, col = "grey25", linetype = "dashed"
+        ) +
+        scale_color_manual(values = setNames(sig_colors, levels(clean_degs_df$diff_flag))) +
+        labs(
+            title = plot_title,
+            x = "log2 Fold Change", y = "-log10(p.adjust)",
+            color = paste0("p.adjust < ", padj_th, "\n|log2(FC)| > ", logfc_th)
+        ) +
+        theme_classic() +
+        theme(
+            plot.title = element_text(hjust = 0.5),
+            axis.title.x = element_text(size = 26),
+            axis.title.y = element_text(size = 26),
+            axis.text.x = element_text(size = 24),
+            axis.text.y = element_text(size = 24),
+            legend.text = element_text(size = 24),
+            legend.title = element_text(size = 26),
+            text = element_text(family = "Arial")
+        )
+
+    ppreview(p, file = file.path(
+        out_dir,
+        gsub("\\.[a-zA-Z0-9]+$", ".pdf", basename(degs_file))
+    ))
+}
+```
+
+## GO analysis
+
+### Prepare ferret gene IDs
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+gpl_file <- "./data/microarray/gpl.with_gene_symbols.tsv"
+out_dir <- "./data/go"
+
+dir.create(out_dir)
+
+gpl <- vroom(gpl_file, delim = "\t")
+gpl$ProbeName <- sapply(gpl$qseqid, function(x) {
+    strsplit(x, ":")[[1]][4]
+})
+gpl <- gpl %>%
+    select(all_of(c(
+        "ProbeName", "Dbxref_GeneID", "gene",
+        "gene_biotype.GPL_blastn", "gene_biotype.Parent_gene"
+    ))) %>%
+    mutate(GeneBioType = if_else(is.na(gene_biotype.Parent_gene),
+        gene_biotype.GPL_blastn,
+        gene_biotype.Parent_gene
+    )) %>%
+    select(all_of(c("ProbeName", "Dbxref_GeneID", "gene", "GeneBioType"))) %>%
+    distinct()
+names(gpl) <- c("ProbeName", "EntrezID", "Symbol", "GeneBioType")
+
+vroom_write_lines(as.character(sort(unique(gpl$EntrezID))),
+    file = file.path(out_dir, "ferret_entrezids.txt")
+)
+```
+
+### Prepare orthologous gene set between mm10 and ferret
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(magrittr)
+
+ferret_mm_orthologs_file <- "./data/go/ferret_mm10.orthologs.tsv"
+ferret_dataset_file <- "./data/go/ferret_ncbi_dataset.tsv"
+
+ferret_dataset_df <- vroom(ferret_dataset_file) %>%
+    select(all_of(c("NCBI GeneID", "Symbol", "Gene Type", "Gene Group Identifier"))) %>%
+    set_colnames(c("ferret_EntrezID", "ferret_Symbol", "ferret_GeneType", "Ortholog_Group_Identifier")) %>%
+    na.omit() %>%
+    mutate_all(as.character) %>%
+    distinct()
+ferret_mm_orthologs_df <- vroom(ferret_mm_orthologs_file) %>%
+    select(all_of(c("NCBI GeneID", "Symbol", "Gene Group Identifier"))) %>%
+    set_colnames(c("mm10_EntrezID", "mm10_Symbol", "Ortholog_Group_Identifier")) %>%
+    na.omit() %>%
+    mutate_all(as.character) %>%
+    distinct()
+df <- inner_join(ferret_dataset_df, ferret_mm_orthologs_df, by = "Ortholog_Group_Identifier")
+vroom_write(df, file = file.path(dirname(ferret_mm_orthologs_file), "ferret_mm10.orthologs.clean.tsv"))
+```
+
+### Attach orthologous mm10 gene IDs to DEGs of ferret
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+ferret_mm_orthologs_file <- "./data/go/ferret_mm10.orthologs.clean.tsv"
+degs_files <- c(
+    "./data/clean_degs/padj0.05_logfc1/A17.VZ-A19.VZ.tsv",
+    "./data/clean_degs/padj0.05_logfc1/A17.ISVZ-A19.ISVZ.tsv",
+    "./data/clean_degs/padj0.05_logfc1/A17.OSVZ-A19.OSVZ.tsv"
+)
+
+ferret_mm_orthologs_df <- vroom(ferret_mm_orthologs_file) %>%
+    mutate_all(as.character)
+for (degs_file in degs_files) {
+    vroom(degs_file) %>%
+        select(all_of(c(
+            "EntrezID", "Symbol",
+            "logFC", "P.Value", "adj.P.Val", "diff_flag"
+        ))) %>%
+        mutate(EntrezID = as.character(EntrezID)) %>%
+        inner_join(ferret_mm_orthologs_df, by = c("EntrezID" = "ferret_EntrezID")) %>%
+        arrange(desc(logFC)) %>%
+        distinct() %>%
+        filter(ferret_GeneType == "PROTEIN_CODING") %>%
+        vroom_write(file = gsub("tsv$", "with_mm10_IDs.tsv", degs_file))
+}
+```
+
+## Check the differential expression concordance between samples of mink and samples of ferret
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+mink_degs_file <- "H:/ubuntu_ssd_backup/projects/mink/proj/rna/degs/res/only_degs/mm10/P2_Gyr_vs_P2_Sul.txt"
+degs_files <- c(
+    "./data/clean_degs/padj0.05_logfc1/A17.VZ-A19.VZ.with_mm10_IDs.tsv",
+    "./data/clean_degs/padj0.05_logfc1/A17.ISVZ-A19.ISVZ.with_mm10_IDs.tsv",
+    "./data/clean_degs/padj0.05_logfc1/A17.OSVZ-A19.OSVZ.with_mm10_IDs.tsv"
+)
+
+mink_degs <- vroom(mink_degs_file) %>%
+    select(all_of(c("final_gene_name", "diff_flag"))) %>%
+    distinct()
+degs_df <- tibble()
+for (degs_file in degs_files) {
+    tmp_df <- vroom(degs_file) %>%
+        select(all_of(c("mm10_Symbol", "logFC"))) %>%
+        mutate(tissue = gsub(
+            "A17\\.[A-Z]+-A19\\.|\\.with_mm10_IDs\\.tsv$",
+            "", basename(degs_file)
+        )) %>%
+        distinct()
+    degs_df <- bind_rows(degs_df, tmp_df)
+}
+df <- inner_join(mink_degs, degs_df, by = c("final_gene_name" = "mm10_Symbol")) %>%
+    mutate(
+        tissue = factor(tissue, levels = c("VZ", "ISVZ", "OSVZ")),
+        logFC_sign = if_else(logFC >= 0, "+", "-")
+    )
+
+ggplot(df) +
+    geom_jitter(aes(tissue, logFC, color = diff_flag))
+```

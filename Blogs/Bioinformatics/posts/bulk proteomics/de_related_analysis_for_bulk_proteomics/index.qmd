@@ -1,0 +1,1097 @@
+---
+title: "DE-related analysis for bulk proteomics"
+author: "Rui Yang"
+date: "2025-01-16"
+date-modified: last-modified
+categories: [bulk proteomics, differential expression]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+At present, this pipeline only allows two sample groups contained in your input files.
+
+```{r}
+work_dir <- "/data/users/yangrui/lab_projs/lym_new"
+
+setwd(work_dir)
+```
+
+## Quality check
+
+1. `expr_file` must include two ID columns:
+
+- `protein_groups`: in which each row must be unique;
+
+- `gene_name`: in which each gene name may not be unique.
+
+In addition, it should also contain a number of sample columns containing protein abundance levels.
+
+Each sample name must be in the form of `ID_N`, where `N` is the replicate number.
+
+2. `sample_file` must include the following three columns:
+
+- `sample`: with the same sample names as those in the abundance file above in the form of `ID_N`;
+
+- `group`: in the form of `ID`;
+
+- `replicate`: in the form of `N`.
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(psych)
+library(FactoMineR)
+library(ggforce)
+library(ggprism)
+library(ggalign)
+library(YRUtils)
+
+expr_file <- "input/BTN3A2_proteomic_quantification_data.tsv"
+sample_file <- "input/sample_sheet.tsv"
+qc_dir <- "qc"
+# Keep those rows detected in at least N replicates in at least one group
+expr_sample_num <- 2
+
+dir.create(qc_dir, showWarnings = FALSE, recursive = FALSE)
+sample_df <- vroom(sample_file) %>%
+    distinct()
+expr_df <- vroom(expr_file) %>%
+    distinct()
+table(duplicated(expr_df$protein_groups))
+
+for (s in sample_df$sample) {
+    expr_df[[s]][is.na(expr_df[[s]])] <- 0
+}
+
+filter_flag <- rep(F, nrow(expr_df))
+for (g in unique(sample_df$group)) {
+    tmp_df <- expr_df[, filter(sample_df, group == g) %>% pull(sample) %>% unique(), drop = F]
+    filter_flag <- filter_flag | (rowSums(tmp_df > 0) >= expr_sample_num)
+}
+expr_df <- expr_df[filter_flag, ]
+
+all_vs_none_expr_df <- tibble()
+sample_groups <- unique(sample_df$group)
+for (g in sample_groups) {
+    tmp_df <- expr_df[rowSums(expr_df[, filter(sample_df, group == g) %>% pull(sample) %>% unique(), drop = F] > 0) == 0, ] %>%
+        mutate(diff_flag = paste0(sample_groups[sample_groups != g], " Up"))
+    all_vs_none_expr_df <- bind_rows(all_vs_none_expr_df, tmp_df)
+}
+both_expr_df <- filter(expr_df, !(protein_groups %in% all_vs_none_expr_df$protein_groups))
+vroom_write(all_vs_none_expr_df,
+    file = gsub("\\.\\w+$", ".all_vs_none.tsv", expr_file),
+    col_names = TRUE, append = FALSE
+)
+vroom_write(both_expr_df,
+    file = gsub("\\.\\w+$", ".both.tsv", expr_file),
+    col_names = TRUE, append = FALSE
+)
+log_expr_df <- log2(expr_df[, unique(sample_df$sample)] + 1)
+
+# Correlation
+cor_res <- corr.test(log_expr_df, use = "pairwise", method = "pearson", adjust = "BH")
+
+p <- ggheatmap(
+    cor_res$r,
+    width = ncol(cor_res$r) * unit(10, "mm"),
+    height = nrow(cor_res$r) * unit(10, "mm")
+) +
+    scheme_align(free_spaces = "t") +
+    scale_fill_gradient2(
+        low = "blue", mid = "white", high = "red",
+        midpoint = 0, limits = c(-1, 1),
+        breaks = c(-1, -0.5, 0, 0.5, 1)
+    ) +
+    labs(fill = "R") +
+    guides(x = guide_axis(angle = 45)) +
+    theme(
+        text = element_text(size = 20, family = "Arial", color = "black"),
+        axis.text = element_text(size = 20, family = "Arial", color = "black")
+    ) +
+    anno_top() +
+    ggalign(
+        data = gsub("_\\d+$", "", colnames(cor_res$r)),
+        size = unit(4, "mm")
+    ) +
+    geom_tile(aes(y = 1, fill = factor(value))) +
+    scale_y_continuous(breaks = NULL, name = NULL, expand = expansion(0)) +
+    labs(fill = "Sample") +
+    theme(
+        text = element_text(size = 20, family = "Arial", color = "black"),
+        axis.text = element_text(size = 20, family = "Arial", color = "black")
+    ) +
+    with_quad(scheme_align(guides = "t"), NULL)
+ppreview(p, file = file.path(qc_dir, "correlation.pdf"))
+
+# PCA
+pca <- PCA(t(log_expr_df), ncp = 10, scale.unit = TRUE, graph = FALSE)
+
+pca_coord <- as.data.frame(pca$ind$coord)
+pca_coord$sample <- row.names(pca_coord)
+pca_coord$group <- factor(gsub("_\\d+$", "", pca_coord$sample))
+pca_eig <- as.data.frame(pca$eig)
+
+p <- ggplot(pca_coord, aes(Dim.1, Dim.2)) +
+    geom_point(aes(color = group), size = 4) +
+    xlab(paste0("PC1 (", round(pca_eig["comp 1", "percentage of variance"]), "%)")) +
+    ylab(paste0("PC2 (", round(pca_eig["comp 2", "percentage of variance"]), "%)")) +
+    geom_mark_ellipse(aes(fill = group), color = NA, alpha = 0.25) +
+    theme_prism(base_family = "Arial", border = TRUE, base_size = 20)
+ppreview(p, file = file.path(qc_dir, "pca.pdf"))
+```
+
+## Differential abundance analysis
+
+For **spectra count** (MS2), the distribution of which can be approximated by a Poisson distribution. In this case, `DESeq2`, `edgeR`, etc. may be used.
+
+For **signal intensity** (MS1), the distribution of which can be approximated by a Normal distribution. In this case, `limma` may be used.
+
+### DEP2 (`limma`-based method)
+
+```{r}
+library(DEP2)
+library(patchwork)
+library(ggplot2)
+library(vroom)
+library(tidyverse)
+library(ggridges)
+library(YRUtils)
+
+expr_file <- "input/BTN3A2_proteomic_quantification_data.both.tsv"
+sample_file <- "input/sample_sheet.tsv"
+output_dir <- "de"
+
+dir.create(output_dir, showWarnings = FALSE, recursive = FALSE)
+sample_df <- vroom(sample_file) %>%
+    distinct()
+expr_df <- vroom(expr_file) %>%
+    distinct()
+
+
+### 1. Perform differential expression analysis over genes detected in both treatment and control
+# For duplicated IDs, add tailed numbers, delimiter is "."
+expr_df <- make_unique(expr_df, names = "gene_name", ids = "protein_groups", delim = ";")
+# Take expression columns
+expr_cols <- which(names(expr_df) %in% sample_df$sample)
+
+
+## 1. Construct SummarizedExperiment object
+se <- make_se_parse(expr_df,
+    columns = expr_cols,
+    mode = "delim", sep = "_",
+    log2transform = T
+)
+
+
+## 2. Filtering
+# Filtering out reverse, contaminant, and low-quality features with many missing values
+# Allow up to N missing values in each condition
+mv_num <- 1
+
+# filter_se() also provides filtering options based on filter_formula,
+# which can be used to filter features based on given columns
+filter_se <- filter_se(se, thr = mv_num)
+
+p <- (plot_frequency(se) + ggtitle("Protein identifications overlap before filter")) /
+    (plot_frequency(filter_se) + ggtitle("Protein identifications overlap after filter"))
+ppreview(p, file = file.path(output_dir, "filter_freq_hists.pdf"))
+
+# Even after filtering, a considerable proportion of missing values may still remain in the assay
+plot_missval(filter_se)
+
+
+## 3. Normalization
+# log1p --> variance stabilizing transformation (vst)
+norm_se <- normalize_vsn(filter_se)
+
+p <- plot_normalization(norm_se)
+ppreview(p, file = file.path(output_dir, "norm_boxplot.pdf"))
+
+# Density and CumSum plots of intensities of proteins with and without missing values
+plot_detect(norm_se)
+
+## 4. Imputation
+# 1. Some may be suitable for missing at random
+# In this case, both small and large values may be missing,
+# so imputing relatively larger values is reasonable
+# 2. Some may be suitable for missing not at random
+# In this case, I think a large proportion of missing values are so small that they cannot be detected,
+# so using imputation with cautions, it may introduce unwanted bias
+# You should have a deep comprehension for the sources of missing values
+# c("QRILC", "bpca", "knn", "MLE", "MinDet", "MinProb", "man", "min", "zero", "mixed", "nbavg", "RF", "GSimp")
+# It seems that "MLE" is really time-consuming
+# Remove method "mixed" because it needs specifying which rows are missing at random (the remaining rows are missing not at random), and specifying two methods for dealing with missing at random and missing not at random respectively
+# Remove method "MLE" because it seems that we need to adjust parameters more carefully otherwise the imputation values of NAs are much larger than the normal
+impute_methods <- c("QRILC", "bpca", "knn", "MinDet", "MinProb", "man", "min", "zero", "nbavg", "RF", "GSimp")
+
+names(impute_methods) <- impute_methods
+# Keep only those sample-feature pairs having NAs
+nas_df <- assay(norm_se) %>%
+    as.data.frame() %>%
+    mutate(gene_name = row.names(.)) %>%
+    pivot_longer(cols = !gene_name, names_to = "label", values_to = "value") %>%
+    mutate(is_na = is.na(value)) %>%
+    filter(is_na) %>%
+    select(gene_name, label)
+# Keep only those sample-feature pairs not having NAs
+non_nas <- nas_df %>%
+    mutate(id = paste0(label, ":", gene_name)) %>%
+    pull(id) %>%
+    unique()
+# Try each imputation method
+impute_se_ls <- lapply(impute_methods, function(x) {
+    message(paste0("\n\nrunning ", x, " ..."))
+    impute(norm_se, fun = x)
+})
+
+imps <- tibble()
+for (m in names(impute_se_ls)) {
+    tmp_df <- assay(impute_se_ls[[m]]) %>%
+        as.data.frame() %>%
+        mutate(gene_name = row.names(.)) %>%
+        pivot_longer(cols = !gene_name, names_to = "label", values_to = "value") %>%
+        left_join(as.data.frame(colData(impute_se_ls[[m]])[, c("label", "condition")]), by = "label") %>%
+        right_join(nas_df, by = c("gene_name", "label")) %>%
+        mutate(method = m)
+    imps <- bind_rows(imps, tmp_df)
+}
+non_imps <- assay(norm_se) %>%
+    as.data.frame() %>%
+    mutate(gene_name = row.names(.)) %>%
+    pivot_longer(cols = !gene_name, names_to = "label", values_to = "value") %>%
+    left_join(as.data.frame(colData(norm_se)[, c("label", "condition")]), by = "label") %>%
+    mutate(id = paste0(label, ":", gene_name), method = "non_impute") %>%
+    filter(!(id %in% non_nas)) %>%
+    select(!id)
+
+# Check the distribution of imputation values of NAs under each method
+p <- ggplot(bind_rows(imps, non_imps), aes(x = value, y = factor(method, level = unique(method)))) +
+    geom_density_ridges(
+        fill = "#027AD450", scale = 1.2,
+        jittered_points = TRUE, position = position_points_jitter(height = 0),
+        point_shape = "|", point_size = 2, point_alpha = 1, alpha = 0.7
+    ) +
+    ylab("Impute method") +
+    xlab("log2 Intensity") +
+    theme_classic()
+ppreview(p, file = file.path(output_dir, "impute_density.pdf"))
+
+
+## 5. Hypothesis testing
+# T-test using limma
+# Test all the other samples vs. control
+control_sample <- "Control"
+padj_th <- 0.05
+lfc_th <- 1
+
+contrast <- "BTN3A2_vs_Control"
+
+pair <- strsplit(contrast, "_vs_")[[1]]
+for (m in names(impute_se_ls)) {
+    impute_se <- impute_se_ls[[m]]
+
+    diff_se <- test_diff(impute_se, type = "control", control = control_sample, fdr.type = "BH")
+    sig_se <- add_rejections(diff_se, alpha = padj_th, lfc = lfc_th)
+    saveRDS(sig_se, file = file.path(output_dir, paste0(contrast, "_", m, "_de.rds")))
+
+    clean_degs <- as.data.frame(sig_se@elementMetadata)
+    names(clean_degs)[grep("_diff$", names(clean_degs))] <- "log2FoldChange"
+    names(clean_degs)[grep("_p.adj$", names(clean_degs))] <- "padj"
+    clean_degs <- clean_degs %>%
+        group_by(gene_name) %>%
+        slice_min(num_NAs) %>%
+        slice_max(sequence_number) %>%
+        slice_min(padj) %>%
+        slice_max(log2FoldChange) %>%
+        slice_sample(n = 1) %>%
+        ungroup() %>%
+        arrange(desc(log2FoldChange)) %>%
+        mutate(diff_flag = if_else(padj < padj_th,
+            if_else(abs(log2FoldChange) > lfc_th,
+                if_else(log2FoldChange > lfc_th,
+                    paste0(pair[1], " Up"),
+                    paste0(pair[2], " Up")
+                ),
+                "NO"
+            ),
+            "NO"
+        ))
+
+    vroom_write(clean_degs, file = file.path(output_dir, paste0(contrast, "_", m, "_de.tsv")))
+
+    p <- plot_volcano(sig_se, contrast = contrast, adjusted = T, add_threshold_line = "intersect", pCutoff = padj_th, fcCutoff = lfc_th, add_names = F)
+    ppreview(p, file = file.path(output_dir, paste0(contrast, "_", m, "_volcano.pdf")))
+
+    p <- plot_heatmap(sig_se, manual_contrast = contrast, kmeans = T, k = 2, split_order = c(2, 1), show_row_names = F, show_row_dend = F, heatmap_width = unit(6, "cm"), heatmap_height = unit(0.04, "mm") * nrow(sig_se@elementMetadata))
+    ppreview(p, file = file.path(output_dir, paste0(contrast, "_", m, "_heatmap.pdf")))
+}
+```
+
+### Only using `limma` package
+
+For the following two methods, there must be two columns with names `protein_name` (which must be unique) and `gene_name` in the expression table file, in which all sample column names must be in the form `ID_repN`, which will be matched using the regular expression `[a-zA-Z0-9]+_rep[0-9]+`.
+
+1. Compare two samples at a time
+
+```{r}
+library(vroom)
+library(limma)
+library(tidyverse)
+library(magrittr)
+
+expr_file <- "expression_sheet.tsv"
+# keep those proteins detected in at least N replicates in at least one sample
+min_expr_num <- 2
+padj_th <- 0.05
+logfc_th <- 1
+# the first is the control sample
+group_levels <- c("WT", "S541N")
+
+expr_df <- vroom(expr_file) %>%
+    as.data.frame() %>%
+    set_rownames(.[["protein_name"]])
+
+samples <- names(expr_df)[str_detect(names(expr_df), "[a-zA-Z0-9]+_rep[0-9]+")]
+names(samples) <- gsub("_rep[0-9]+$", "", samples)
+
+expr_mat <- expr_df[, samples]
+expr_mat[is.na(expr_mat)] <- 0
+
+flag <- rep(FALSE, nrow(expr_mat))
+for (group in unique(names(samples))) {
+    flag <- flag | (rowSums(expr_mat[, samples[names(samples) == group]] > 0) >= min_expr_num)
+}
+expr_mat <- expr_mat[flag, ]
+
+expr_mat_long_df <- expr_mat %>%
+    mutate(protein_name = row.names(.)) %>%
+    pivot_longer(cols = -protein_name, names_to = "sample", values_to = "value") %>%
+    mutate(group = gsub("_rep[0-9]+$", "", sample))
+
+mean_df <- expr_mat_long_df %>%
+    filter(value != 0) %>%
+    group_by(protein_name, group) %>%
+    reframe(mean = mean(value))
+
+expr_mat_filled_df <- left_join(expr_mat_long_df, mean_df, by = c("protein_name", "group")) %>%
+    mutate(value = if_else(!is.na(mean) & (value == 0), mean, value))
+
+expr_mat <- expr_mat_filled_df %>%
+    select(-all_of(c("group", "mean"))) %>%
+    pivot_wider(names_from = "sample", values_from = "value") %>%
+    as.data.frame() %>%
+    set_rownames(.[["protein_name"]]) %>%
+    select(-protein_name)
+
+expr_mat <- expr_mat[, samples]
+expr_df <- inner_join(expr_df, expr_mat %>% mutate(protein_name = row.names(.)), suffix = c(".raw", ".mean_filled"), by = "protein_name")
+
+expr_mat <- log2(expr_mat + 1)
+
+group_list <- factor(names(samples), levels = group_levels)
+design <- model.matrix(~ 0 + group_list)
+colnames(design) <- levels(group_list)
+row.names(design) <- colnames(expr_mat)
+
+contrasts <- t(combn(group_levels, 2)) %>%
+    as.data.frame() %>%
+    mutate(contrast = paste0(V2, "-", V1)) %>%
+    pull(contrast)
+
+fit <- lmFit(expr_mat, design)
+contrast_matrix <- makeContrasts(contrasts = contrasts, levels = design)
+fit2 <- contrasts.fit(fit, contrast_matrix)
+fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)
+
+# check valid coefficients
+colnames(fit2$coefficients)
+
+coef <- "S541N-WT"
+
+res <- topTable(fit2, coef = coef, number = Inf) %>%
+    mutate(protein_name = row.names(.))
+
+res <- inner_join(expr_df, res, by = "protein_name") %>%
+    mutate(
+        P.Value = if_else(P.Value == 0, .Machine$double.xmin, P.Value),
+        adj.P.Val = if_else(adj.P.Val == 0, .Machine$double.xmin, adj.P.Val),
+        diff_flag = if_else(adj.P.Val < 0.05,
+            if_else(abs(logFC) > logfc_th,
+                if_else(logFC > logfc_th, paste0(strsplit(coef, "-")[[1]][1], " Up"), paste0(strsplit(coef, "-")[[1]][2], " Up")),
+                "NO"
+            ),
+            "NO"
+        )
+    ) %>%
+    arrange(diff_flag)
+
+vroom_write(res, file = paste0(coef, ".tsv"), col_names = TRUE, append = FALSE)
+```
+
+2. Compare all possible pairs at a time
+
+```{r}
+library(vroom)
+library(limma)
+library(tidyverse)
+library(magrittr)
+library(gtools)
+
+work_dir <- "test"
+expr_file <- "xbf_expression_sheet.tsv"
+# keep those proteins detected in at least N replicates in at least one sample
+min_expr_num <- 2
+padj_th <- 0.05
+logfc_th <- 1
+
+setwd(work_dir)
+
+expr_df <- vroom(expr_file) %>%
+    as.data.frame() %>%
+    set_rownames(.[["protein_name"]])
+
+samples <- names(expr_df)[str_detect(names(expr_df), "[a-zA-Z0-9]+_rep[0-9]+")]
+names(samples) <- gsub("_rep[0-9]+$", "", samples)
+sample_pair_combns <- permutations(length(unique(names(samples))), 2, v = unique(names(samples)))
+
+for (i in seq_len(nrow(sample_pair_combns))) {
+    group_levels <- sample_pair_combns[i, ]
+    pair_samples <- samples[names(samples) %in% group_levels]
+
+    expr_mat <- expr_df[, pair_samples]
+    expr_mat[is.na(expr_mat)] <- 0
+
+    flag <- rep(FALSE, nrow(expr_mat))
+    for (group in group_levels) {
+        flag <- flag | (rowSums(expr_mat[, samples[names(samples) == group]] > 0) >= min_expr_num)
+    }
+    expr_mat <- expr_mat[flag, ]
+
+    expr_mat_long_df <- expr_mat %>%
+        mutate(protein_name = row.names(.)) %>%
+        pivot_longer(cols = -protein_name, names_to = "sample", values_to = "value") %>%
+        mutate(group = gsub("_rep[0-9]+$", "", sample))
+
+    mean_df <- expr_mat_long_df %>%
+        filter(value != 0) %>%
+        group_by(protein_name, group) %>%
+        reframe(mean = mean(value))
+
+    expr_mat_filled_df <- left_join(expr_mat_long_df, mean_df, by = c("protein_name", "group")) %>%
+        mutate(value = if_else(!is.na(mean) & (value == 0), mean, value))
+
+    expr_mat <- expr_mat_filled_df %>%
+        select(-all_of(c("group", "mean"))) %>%
+        pivot_wider(names_from = "sample", values_from = "value") %>%
+        as.data.frame() %>%
+        set_rownames(.[["protein_name"]]) %>%
+        select(-protein_name)
+
+    expr_mat <- expr_mat[, pair_samples]
+    expr_mat <- log2(expr_mat + 1)
+
+    group_list <- factor(names(pair_samples), levels = group_levels)
+    design <- model.matrix(~ 0 + group_list)
+    colnames(design) <- levels(group_list)
+    row.names(design) <- colnames(expr_mat)
+
+    contrasts <- t(combn(group_levels, 2)) %>%
+        as.data.frame() %>%
+        mutate(contrast = paste0(V2, "-", V1)) %>%
+        pull(contrast)
+
+    fit <- lmFit(expr_mat, design)
+    contrast_matrix <- makeContrasts(contrasts = contrasts, levels = design)
+    fit2 <- contrasts.fit(fit, contrast_matrix)
+    fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)
+
+    coef <- colnames(fit2$coefficients)
+
+    res <- topTable(fit2, coef = coef, number = Inf) %>%
+        mutate(protein_name = row.names(.))
+
+    res <- inner_join(expr_df[, c("protein_name", "gene_name")], res, by = "protein_name") %>%
+        mutate(
+            P.Value = if_else(P.Value == 0, .Machine$double.xmin, P.Value),
+            adj.P.Val = if_else(adj.P.Val == 0, .Machine$double.xmin, adj.P.Val),
+            diff_flag = if_else(adj.P.Val < 0.05,
+                if_else(abs(logFC) > logfc_th,
+                    if_else(logFC > logfc_th, paste0(strsplit(coef, "-")[[1]][1], " Up"), paste0(strsplit(coef, "-")[[1]][2], " Up")),
+                    "NO"
+                ),
+                "NO"
+            )
+        ) %>%
+        arrange(diff_flag)
+
+    vroom_write(res, file = paste0(gsub("-", "_vs_", coef), ".tsv"), col_names = TRUE, append = FALSE)
+}
+```
+
+## Merge DE files
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+files <- c(
+    "input/BTN3A2_proteomic_quantification_data.all_vs_none.tsv",
+    "de/BTN3A2_vs_Control_bpca_de.tsv"
+)
+output_file <- "de/BTN3A2_vs_Control_bpca_de.all_vs_none.tsv"
+
+df <- tibble()
+for (file in files) {
+    df <- bind_rows(
+        df,
+        vroom(file) %>%
+            select(protein_name, gene_name, diff_flag) %>%
+            filter(diff_flag != "NO")
+    )
+}
+df <- distinct(df) %>%
+    arrange(diff_flag)
+
+vroom_write(df, file = output_file, col_names = TRUE, append = FALSE)
+```
+
+## Retrieve sub-cellular location info from UniProt and Synaptome database
+
+```{r}
+library(vroom)
+library(glue)
+library(tidyverse)
+library(rvest)
+library(stringr)
+library(synaptome.db)
+
+organism_id <- 10116
+url_template <- "https://rest.uniprot.org/uniprotkb/search?query=(accession:{accession})%20AND%20(active:true)%20AND%20(organism_id:{organism_id})&fields=accession,gene_primary,organism_name,organism_id,protein_name,annotation_score,protein_existence,reviewed,ft_intramem,cc_subcellular_location,ft_topo_dom,ft_transmem,go,go_p,go_c,go_f&format=tsv"
+de_file <- "de/BTN3A2_vs_Control_bpca_de.all_vs_none.tsv"
+output_dir <- "subcellular_location"
+keep_cols <- c("protein_name", "gene_name", "diff_flag")
+keep_de_types <- c("BTN3A2 Up", "Control Up")
+
+dir.create(output_dir, showWarnings = FALSE, recursive = FALSE)
+df <- vroom(de_file) %>%
+    select(all_of(keep_cols)) %>%
+    filter(diff_flag %in% keep_de_types)
+
+res_df <- tibble()
+for (accession in unique(df$protein_name)) {
+    url_instance <- glue(url_template)
+    e <- try(item_raw_text <- read_html(url_instance) %>% html_text(), silent = T)
+    if ("try-error" %in% class(e)) {
+        message("invalid accession: ", accession)
+    } else {
+        item_df <- vroom(I(item_raw_text), delim = "\t")
+        res_df <- bind_rows(res_df, item_df)
+    }
+}
+res_df <- distinct(res_df)
+
+res_df[["scl_secret"]] <- grepl("secret", res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+res_df[["scl_membrane"]] <- grepl("membrane", res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+res_df[["scl_secret_membrane"]] <- res_df[["scl_secret"]] | res_df[["scl_membrane"]]
+
+res_df[["uniprot_scl_synapse"]] <- str_extract_all(res_df[["Subcellular location [CC]"]], regex("[\\w-]*synap[\\w-]*", ignore_case = TRUE)) %>%
+    sapply(function(x) {
+        paste0(unique(na.omit(x)), collapse = ";")
+    })
+res_df[["uniprot_go_synapse"]] <- str_extract_all(res_df[["Gene Ontology (GO)"]], regex("[\\w-]*synap[\\w-]*", ignore_case = T)) %>%
+    sapply(function(x) {
+        paste0(unique(na.omit(x)), collapse = ";")
+    })
+res_df <- left_join(res_df,
+    findGeneByCompartmentPaperCnt(cnt = 1) %>%
+        filter(RatName %in% res_df[["Gene Names (primary)"]]) %>%
+        select(RatName, Localisation) %>%
+        distinct() %>%
+        group_by(RatName) %>%
+        reframe(synaptome_db_synapse = paste0(unique(Localisation), collapse = ";")),
+    by = c("Gene Names (primary)" = "RatName")
+)
+res_df[["final_synapse"]] <- apply(res_df, 1, function(x) {
+    vec <- na.omit(c(x["uniprot_scl_synapse"], x["uniprot_go_synapse"], x["synaptome_db_synapse"]))
+    paste0(vec[vec != ""], collapse = ";")
+}, simplify = T)
+res_df[["scl_secret_membrane_final_synapse"]] <- res_df[["scl_secret_membrane"]] & (res_df[["final_synapse"]] != "")
+
+target_res_df <- filter(res_df, scl_secret_membrane_final_synapse)
+target_res_df[["final_synapse_label"]] <- sapply(target_res_df[["final_synapse"]], function(x) {
+    vec <- NA
+    if (grepl("postsynap|post-synap", x, ignore.case = TRUE)) {
+        vec <- c(vec, "Postsynapse")
+    }
+    if (grepl("presynap|pre-synap", x, ignore.case = TRUE)) {
+        vec <- c(vec, "Presynapse")
+    }
+    if (grepl("synap", x, ignore.case = TRUE)) {
+        vec <- c(vec, "Synapse")
+    }
+    if (grepl("Synaptic_Vesicle", x, ignore.case = TRUE)) {
+        vec <- c(vec, "Synaptic vesicle")
+    }
+    vec <- na.omit(vec)
+    if (length(vec) == 0) {
+        stop("no matching")
+    }
+    if (length(vec) > 1) {
+        vec <- vec[vec != "Synapse"]
+    }
+    paste0(sort(unique(vec)), collapse = "/")
+})
+
+res_df <- inner_join(df, res_df, by = c("protein_name" = "Entry"))
+target_res_df <- inner_join(df, target_res_df, by = c("protein_name" = "Entry"))
+vroom_write(res_df, file = file.path(output_dir, gsub("\\.\\w+$", ".scl.raw.tsv", basename(de_file))))
+vroom_write(target_res_df, file = file.path(output_dir, gsub("\\.\\w+$", ".scl.target.tsv", basename(de_file))))
+```
+
+## GO enrichment analysis
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(clusterProfiler)
+library(AnnotationDbi)
+
+go_db_file <- "/data/biodatabase/species/mRatBN7/genome/anno/org.Rn.eg.db.sqlite"
+degs_file <- "de/BTN3A2_vs_Control_bpca_de.all_vs_none.tsv"
+root_dir <- "go"
+
+output_dir <- file.path(root_dir, gsub("\\.\\w+$", "", basename(degs_file)))
+dir.create(output_dir, recursive = TRUE)
+
+degs <- vroom(degs_file)
+gene_set_ls <- degs[, c("gene_name", "diff_flag")] %>%
+    filter(diff_flag != "NO") %>%
+    split(.[["diff_flag"]]) %>%
+    lapply(function(x) {
+        unique(na.omit(x[["gene_name"]]))
+    })
+
+orgdb <- loadDb(go_db_file)
+ego <- compareCluster(gene_set_ls,
+    fun = "enrichGO",
+    keyType = "SYMBOL",
+    OrgDb = orgdb,
+    ont = "ALL",
+    pAdjustMethod = "BH",
+    minGSSize = 10,
+    maxGSSize = 1000,
+    pvalueCutoff = 0.05,
+    qvalueCutoff = 0.05,
+    readable = FALSE,
+    pool = FALSE
+)
+nrow(ego@compareClusterResult)
+
+saveRDS(ego, file = file.path(output_dir, "GO_ALL.rds"))
+vroom_write(ego@compareClusterResult,
+    file = file.path(output_dir, "GO_ALL.tsv"),
+    col_names = TRUE, append = FALSE
+)
+```
+
+## Plot expression heatmap
+
+The followings are just various examples:
+
+```{r}
+library(ComplexHeatmap)
+library(vroom)
+library(tidyverse)
+library(magrittr)
+library(circlize)
+library(YRUtils)
+
+sample_file <- "/data/users/yangrui/lab_projs/lym_new/input/sample_sheet.tsv"
+gene_file <- "/data/users/yangrui/lab_projs/lym_new/de/BTN3A2_vs_Control_bpca_de.all_vs_none.tsv"
+quant_file <- "/data/users/yangrui/lab_projs/lym_new/input/BTN3A2_proteomic_quantification_data.tsv"
+label_file <- "/data/users/yangrui/lab_projs/lym_new/subcellular_location/BTN3A2_vs_Control_bpca_de.all_vs_none.scl.target.cys.tsv"
+output_dir <- "/home/yangrui/temp"
+
+sample_df <- vroom(sample_file)
+gene_df <- vroom(gene_file) %>%
+    filter(diff_flag == "BTN3A2 Up")
+label_df <- vroom(label_file)
+
+quant_df <- vroom(quant_file) %>%
+    select(all_of(c("protein_name", sample_df$sample))) %>%
+    filter(protein_name %in% gene_df$protein_name) %>%
+    as.data.frame() %>%
+    set_rownames(.[["protein_name"]]) %>%
+    select(-protein_name)
+quant_df[is.na(quant_df)] <- 0
+quant_mat <- scale(t(log2(quant_df + 1)))
+
+col_fun <- colorRamp2(c(floor(min(quant_mat)), 0, ceiling(max(quant_mat))), c("skyblue", "white", "orange"))
+row_order <- c("BTN3A2_1", "BTN3A2_2", "BTN3A2_3", "Control_1", "Control_2", "Control_3")
+row_split <- gsub("_\\d+$", "", row.names(quant_mat))
+row_anno <- rowAnnotation(
+    Sample = gsub("_\\d+$", "", row.names(quant_mat)),
+    show_legend = FALSE,
+    show_annotation_name = FALSE,
+    simple_anno_size = unit(3, "mm"),
+    col = list(Sample = c("BTN3A2" = "orange", "Control" = "skyblue"))
+)
+col_anno <- columnAnnotation(
+    Gene = anno_mark(
+        at = sapply(label_df$protein_name, function(x) {
+            which(colnames(quant_mat) == x)
+        },
+        simplify = TRUE, USE.NAMES = FALSE
+        ),
+        labels = label_df$gene_name
+    )
+)
+
+p <- Heatmap(
+    quant_mat,
+    col = col_fun,
+    cluster_columns = TRUE,
+    cluster_column_slices = TRUE,
+    cluster_rows = FALSE,
+    cluster_row_slices = FALSE,
+    show_column_names = FALSE,
+    show_column_dend = FALSE,
+    show_row_names = FALSE,
+    row_order = row_order,
+    row_names_side = "left",
+    row_split = row_split,
+    row_gap = unit(0, "mm"),
+    left_annotation = row_anno,
+    top_annotation = col_anno,
+    heatmap_legend_param = list(title = "Expression")
+)
+ppreview(p, file = file.path(output_dir, "heatmap.pdf"))
+```
+
+```{r}
+library(ComplexHeatmap)
+library(vroom)
+library(tidyverse)
+library(magrittr)
+library(circlize)
+library(YRUtils)
+
+quant_file <- "temp/S541N-WT.tsv"
+labeled_genes <- c("Ddx5", "Gapdh", "Actb", "Actg1", "Actn1", "Dhx9", "Draxin", "Pelp1", "Hnrnpa3")
+output_dir <- "temp"
+
+sample_df <- expand.grid(c("S541N", "WT"), "_rep", 1:3, ".raw") %>%
+    mutate(sample = paste0(Var1, Var2, Var3, Var4)) %>%
+    rename(group = Var1) %>%
+    select(group, sample)
+quant_df <- vroom(quant_file) %>%
+    filter(diff_flag == "S541N Up") %>%
+    select(all_of(c("protein_name", "gene_name", sample_df$sample))) %>%
+    as.data.frame() %>%
+    set_rownames(.[["protein_name"]])
+
+quant_mat <- quant_df %>%
+    select(-protein_name, -gene_name)
+quant_mat[is.na(quant_mat)] <- 0
+quant_mat <- scale(t(log2(quant_mat + 1)))
+
+col_fun <- colorRamp2(c(floor(min(quant_mat)), 0, ceiling(max(quant_mat))), c("skyblue", "white", "orange"))
+row_order <- c("S541N_rep1.raw", "S541N_rep2.raw", "S541N_rep3.raw", "WT_rep1.raw", "WT_rep2.raw", "WT_rep3.raw")
+row_split <- gsub("_rep\\d+.raw$", "", row.names(quant_mat))
+left_anno <- rowAnnotation(
+    Sample = gsub("_rep\\d+.raw$", "", row.names(quant_mat)),
+    show_legend = FALSE,
+    show_annotation_name = FALSE,
+    simple_anno_size = unit(3, "mm"),
+    col = list(Sample = c("S541N" = "#EE6A50", "WT" = "#76EEC6"))
+)
+
+quant_df <- quant_df %>%
+    mutate(
+        group = if_else(is.na(gene_name), "Other",
+            if_else(str_detect(gene_name, "^Rpl"), "Rpl",
+                if_else(str_detect(gene_name, "^Rps"), "Rps",
+                    if_else(str_detect(gene_name, "^Tuba"), "Tuba",
+                        if_else(str_detect(gene_name, "^Tubb"), "Tubb", "Other")
+                    )
+                )
+            )
+        ),
+        group = factor(group, levels = c("Rpl", "Rps", "Tuba", "Tubb", "Other"))
+    )
+column_split <- quant_df$group
+bottom_anno <- columnAnnotation(
+    Group = quant_df$group,
+    show_legend = TRUE,
+    show_annotation_name = FALSE,
+    simple_anno_size = unit(3, "mm"),
+    col = list(Group = c("Rpl" = "#B23AEE", "Rps" = "#B4EEB4", "Tuba" = "#EE7600", "Tubb" = "#00B2EE", "Other" = "#EEA2AD"))
+)
+
+label_df <- filter(quant_df, gene_name %in% labeled_genes) %>%
+    select(protein_name, gene_name)
+top_anno <- columnAnnotation(
+    Gene = anno_mark(
+        at = sapply(label_df$protein_name, function(x) {
+            which(colnames(quant_mat) == x)
+        },
+        simplify = TRUE, USE.NAMES = FALSE
+        ),
+        labels = label_df$gene_name
+    )
+)
+
+p <- Heatmap(
+    quant_mat,
+    col = col_fun,
+    cluster_columns = TRUE,
+    cluster_column_slices = FALSE,
+    cluster_rows = FALSE,
+    cluster_row_slices = FALSE,
+    show_column_names = FALSE,
+    show_column_dend = FALSE,
+    show_row_names = FALSE,
+    row_order = row_order,
+    row_names_side = "left",
+    row_split = row_split,
+    row_gap = unit(0, "mm"),
+    column_gap = unit(0, "mm"),
+    column_split = column_split,
+    left_annotation = left_anno,
+    top_annotation = top_anno,
+    bottom_annotation = bottom_anno,
+    column_title = NULL,
+    column_title_rot = 90,
+    column_title_side = "bottom",
+    heatmap_legend_param = list(title = "scaled LFQ intensity")
+)
+
+ppreview(p, file = file.path(output_dir, "heatmap.pdf"))
+```
+
+## Some examples about usages of UniProt and STRING APIs
+
+1. Retrieve subcellular locations and interactions from UniProt
+
+```{r}
+library(vroom)
+library(glue)
+library(tidyverse)
+library(rvest)
+library(stringr)
+
+work_dir <- "test"
+organism_id <- 9606
+url_template <- "https://rest.uniprot.org/uniprotkb/search?query=(accession:{accession})%20AND%20(active:true)%20AND%20(organism_id:{organism_id})&fields=accession,gene_primary,organism_name,organism_id,protein_name,annotation_score,protein_existence,reviewed,ft_intramem,cc_subcellular_location,ft_topo_dom,ft_transmem,go,go_p,go_c,go_f,cc_interaction&format=tsv"
+de_file <- "degs/xbfGlia_vs_xbfAstro.tsv"
+output_dir <- "subcellular_locations_and_interactions"
+
+setwd(work_dir)
+dir.create(output_dir, showWarnings = FALSE, recursive = FALSE)
+
+df <- vroom(de_file) %>%
+    select(all_of(c("protein_name", "gene_name", "diff_flag"))) %>%
+    filter(diff_flag != "NO")
+
+res_df <- tibble()
+for (accession in unique(df$protein_name)) {
+    url_instance <- glue(url_template)
+    e <- try(item_raw_text <- read_html(url_instance) %>% html_text(), silent = T)
+    if ("try-error" %in% class(e)) {
+        message("invalid accession: ", accession)
+    } else {
+        item_df <- vroom(I(item_raw_text), delim = "\t") %>%
+            mutate(
+                `Organism (ID)` = as.integer(`Organism (ID)`),
+                Annotation = as.integer(Annotation)
+            )
+        res_df <- bind_rows(res_df, item_df)
+    }
+}
+res_df <- distinct(res_df)
+
+res_df[["scl_secret"]] <- grepl("secret", res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+res_df[["scl_membrane"]] <- grepl("membrane", res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+res_df[["scl_extracellular"]] <- grepl("extracellular", res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+res_df[["scl_pass"]] <- res_df[["scl_secret"]] | res_df[["scl_membrane"]] | res_df[["scl_extracellular"]]
+
+res_df <- filter(res_df, scl_pass)
+nrow(res_df)
+
+res_df <- inner_join(df, res_df, by = c("protein_name" = "Entry")) %>%
+    arrange(diff_flag)
+vroom_write(res_df, file = file.path(output_dir, gsub("\\.(txt|tsv)$", ".secreted.tsv", basename(de_file))), col_names = TRUE, append = FALSE)
+
+res_df <- res_df %>%
+    separate_rows(all_of("Interacts with"), sep = "; ") %>%
+    mutate(
+        interacted_protein = `Interacts with`,
+        interacted_protein = if_else(
+            str_detect(interacted_protein, ".*\\[[a-zA-Z0-9-]+\\]$"),
+            str_extract(interacted_protein, "(?<=\\[)[a-zA-Z0-9-]+(?=\\])"),
+            interacted_protein
+        ),
+        interacted_protein = gsub("-[0-9]+$", "", interacted_protein)
+    ) %>%
+    filter(!is.na(interacted_protein))
+
+interact_res_df <- tibble()
+for (accession in unique(res_df[["interacted_protein"]])) {
+    url_instance <- glue(url_template)
+    e <- try(item_raw_text <- read_html(url_instance) %>% html_text(), silent = T)
+    if ("try-error" %in% class(e)) {
+        message("invalid accession: ", accession)
+    } else {
+        item_df <- vroom(I(item_raw_text), delim = "\t") %>%
+            mutate(
+                `Organism (ID)` = as.integer(`Organism (ID)`),
+                Annotation = as.integer(Annotation)
+            )
+        interact_res_df <- bind_rows(interact_res_df, item_df)
+    }
+}
+interact_res_df <- distinct(interact_res_df)
+
+interact_res_df[["scl_secret"]] <- grepl("secret", interact_res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+interact_res_df[["scl_membrane"]] <- grepl("membrane", interact_res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+interact_res_df[["scl_extracellular"]] <- grepl("extracellular", interact_res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+interact_res_df[["scl_pass"]] <- interact_res_df[["scl_secret"]] | interact_res_df[["scl_membrane"]] | interact_res_df[["scl_extracellular"]]
+
+interact_res_df <- filter(interact_res_df, scl_pass) %>%
+    mutate(interact_database = "UniProt")
+nrow(interact_res_df)
+
+final_res_df <- inner_join(res_df, interact_res_df, by = c("interacted_protein" = "Entry"), suffix = c(".dep", ".interacted"))
+vroom_write(final_res_df, file = file.path(output_dir, gsub("\\.(txt|tsv)$", ".interacted.uniprot.tsv", basename(de_file))), col_names = TRUE, append = FALSE)
+```
+
+2. Retrieve protein interactions from STRING
+
+```{r}
+library(vroom)
+library(glue)
+library(tidyverse)
+library(rvest)
+library(stringr)
+library(jsonlite)
+
+work_dir <- "test"
+organism_id <- 9606
+url_template <- "https://rest.uniprot.org/uniprotkb/search?query=(accession:{accession})%20AND%20(active:true)%20AND%20(organism_id:{organism_id})&fields=accession,gene_primary,organism_name,organism_id,protein_name,annotation_score,protein_existence,reviewed,ft_intramem,cc_subcellular_location,ft_topo_dom,ft_transmem,go,go_p,go_c,go_f,cc_interaction&format=tsv"
+submit_cmd <- "curl --request POST 'https://rest.uniprot.org/idmapping/run' --form 'ids=\"{ids}\"' --form 'from=\"UniProtKB_AC-ID\"' --form 'to=\"UniProtKB\"'"
+status_cmd <- "curl -i 'https://rest.uniprot.org/idmapping/status/{submit_cmd_instance_response_job_id}'"
+result_cmd <- "curl -s 'https://rest.uniprot.org/idmapping/results/{submit_cmd_instance_response_job_id}'"
+max_length <- 20
+network_file <- "string_db/9606.protein.physical.links.full.v12.0.txt.gz"
+info_file <- "string_db/9606.protein.info.v12.0.txt.gz"
+alias_file <- "string_db/9606.protein.aliases.v12.0.txt.gz"
+secret_file <- "subcellular_locations_and_interactions/xbfGlia_vs_xbfAstro.secreted.tsv"
+output_dir <- "subcellular_locations_and_interactions"
+
+setwd(work_dir)
+dir.create(output_dir, showWarnings = FALSE, recursive = FALSE)
+
+info_df <- vroom(info_file) %>%
+    select(all_of(c("#string_protein_id", "preferred_name"))) %>%
+    distinct()
+
+secret_df <- vroom(secret_file) %>%
+    inner_join(info_df, by = c("gene_name" = "preferred_name"))
+
+network_df <- vroom(network_file) %>%
+    filter(protein1 %in% secret_df[["#string_protein_id"]]) %>%
+    inner_join(info_df, by = c("protein2" = "#string_protein_id"))
+
+source_levels <- c("Ensembl_HGNC_uniprot_ids", "UniProt_ID", "UniProt_AC")
+alias_df <- vroom(alias_file) %>%
+    filter((`#string_protein_id` %in% network_df$protein2) & (source %in% source_levels)) %>%
+    mutate(source = factor(source, levels = source_levels)) %>%
+    group_by(`#string_protein_id`) %>%
+    slice_min(source) %>%
+    slice_sample(n = 1) %>%
+    ungroup()
+
+network_df <- inner_join(network_df, alias_df, by = c("protein2" = "#string_protein_id"))
+
+uniq_ids <- unique(network_df$alias)
+mpt_df <- tibble()
+for (id_vec in split(uniq_ids, ceiling(seq_along(uniq_ids) / max_length))) {
+    ids <- paste0(id_vec, collapse = ",")
+
+    submit_cmd_instance <- glue(submit_cmd)
+    submit_cmd_instance_response <- system(submit_cmd_instance, intern = TRUE, ignore.stdout = FALSE, ignore.stderr = FALSE, wait = TRUE)
+    submit_cmd_instance_response_ls <- fromJSON(submit_cmd_instance_response)
+    submit_cmd_instance_response_job_id <- submit_cmd_instance_response_ls$jobId
+
+    status_cmd_instance <- glue(status_cmd)
+    while (TRUE) {
+        status_cmd_instance_response <- system(status_cmd_instance, intern = TRUE, ignore.stdout = FALSE, ignore.stderr = FALSE, wait = TRUE)
+        status_cmd_instance_response <- trimws(status_cmd_instance_response)
+        status_cmd_instance_response_ls <- fromJSON(status_cmd_instance_response[length(status_cmd_instance_response)])
+        if ((status_cmd_instance_response[1] == "HTTP/2 303") && (status_cmd_instance_response_ls$jobStatus == "FINISHED")) {
+            message("results can be retrieved!")
+            break
+        }
+        Sys.sleep(3)
+    }
+
+    result_cmd_instance <- glue(result_cmd)
+    result_cmd_instance_response <- system(result_cmd_instance, intern = TRUE, ignore.stdout = FALSE, ignore.stderr = FALSE, wait = TRUE)
+    result_cmd_instance_response_ls <- fromJSON(result_cmd_instance_response)
+    if (length(result_cmd_instance_response_ls$results) == 0) {
+        stop("no ID was mapped successfully")
+    }
+    tmp_df <- result_cmd_instance_response_ls$results
+    mpt_df <- bind_rows(mpt_df, tmp_df)
+}
+mpt_df <- distinct(mpt_df)
+
+network_df <- inner_join(network_df, mpt_df, by = c("alias" = "from"))
+
+interact_res_df <- tibble()
+for (accession in unique(network_df$to)) {
+    url_instance <- glue(url_template)
+    e <- try(item_raw_text <- read_html(url_instance) %>% html_text(), silent = T)
+    if ("try-error" %in% class(e)) {
+        message("invalid accession: ", accession)
+    } else {
+        item_df <- vroom(I(item_raw_text), delim = "\t") %>%
+            mutate(
+                `Organism (ID)` = as.integer(`Organism (ID)`),
+                Annotation = as.integer(Annotation)
+            )
+        interact_res_df <- bind_rows(interact_res_df, item_df)
+    }
+}
+interact_res_df <- distinct(interact_res_df)
+
+interact_res_df[["scl_secret"]] <- grepl("secret", interact_res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+interact_res_df[["scl_membrane"]] <- grepl("membrane", interact_res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+interact_res_df[["scl_extracellular"]] <- grepl("extracellular", interact_res_df[["Subcellular location [CC]"]], ignore.case = TRUE)
+interact_res_df[["scl_pass"]] <- interact_res_df[["scl_secret"]] | interact_res_df[["scl_membrane"]] | interact_res_df[["scl_extracellular"]]
+
+interact_res_df <- filter(interact_res_df, scl_pass) %>%
+    mutate(interact_database = "STRING")
+nrow(interact_res_df)
+
+final_res_df <- inner_join(secret_df, network_df, by = c("#string_protein_id" = "protein1")) %>%
+    inner_join(interact_res_df, by = c("to" = "Entry"), suffix = c(".dep", ".interacted"))
+vroom_write(final_res_df, file = file.path(output_dir, gsub("\\.secreted\\.(txt|tsv)$", ".interacted.string.tsv", basename(secret_file))), col_names = TRUE, append = FALSE)
+```

@@ -2,6 +2,14 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/bulk RNA-seq/bulk_rna-seq_de_analysis_and_batch_correction_with_deseq2_limma_and_sva/index.html",
+      "/posts/bulk ATAC&ChIP-seq/build_encode_atac_chip_seq_pipeline_indices/index.html",
+      "/posts/bulk RNA-seq/build_encode_rna_seq_pipeline_indices/index.html",
+      "/posts/bulk proteomics/de_related_analysis_for_bulk_proteomics/index.html",
+      "/posts/MPRA/mpra_analysis_pipeline/index.html",
+      "/posts/Misc/misc_r_code/index.html",
+      "/posts/Cut&Tag/cuttag_analysis_pipeline/index.html",
+      "/posts/bulk RNA-seq/agilent_mrna_expression_microarray_analysis_using_limma/index.html",
       "/posts/bulk RNA-seq/identify_housekeeping_genes/index.html",
       "/posts/bulk RNA-seq/bulk_rna-seq_pseudotime_analysis/index.html"
     ]

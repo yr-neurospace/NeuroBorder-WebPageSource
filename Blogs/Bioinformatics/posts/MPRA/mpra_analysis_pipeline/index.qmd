@@ -1,0 +1,815 @@
+---
+title: "MPRA analysis pipeline"
+author: "Rui Yang"
+date: "2025-01-08"
+date-modified: last-modified
+categories: [mpra]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+jupyter: julia-1.10
+execute:
+  warning: false
+  eval: false
+---
+
+## Link barcodes to CREs
+
+Before running any of the following steps, you should rename your FASTQ files according to [these rules](https://www.neuroborder.com/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/#copy-your-raw-fastq-data-to-a-new-directory-and-rename-them).
+
+```{julia}
+work_dir = "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230"
+
+cd(work_dir)
+```
+
+```{r}
+work_dir <- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230"
+
+setwd(work_dir)
+```
+
+### MD5SUM check over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+md5_file = "md5.txt"
+md5_check_file = "md5_check.txt"
+
+cd(raw_fastq_dir)
+YRUtils.BaseUtils.md5_check(md5_file, md5_check_file)
+cd(work_dir)
+```
+
+### FASTQC over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+raw_fastqc_dir = "raw_fastqc"
+
+mkpath(raw_fastqc_dir)
+raw_fastq_files = YRUtils.BaseUtils.list_files(raw_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+YRUtils.BioUtils.fastqc(raw_fastq_files, raw_fastqc_dir;
+    fastqc_options="--threads 4", multiqc_options="--zip-data-dir", num_jobs=4)
+```
+
+### Quality trimming over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+clean_fastq_dir = "clean_fastq"
+
+mkpath(clean_fastq_dir)
+raw_fastq_files = YRUtils.BaseUtils.list_files(raw_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+dict = YRUtils.BioUtils.auto_detect_fastq_read_type(raw_fastq_files)
+files_dict = if dict["paired"]["status"] == "yes"
+    dict["paired"]["dict"]
+elseif dict["single"]["status"] == "yes"
+    dict["single"]["dict"]
+else
+    @error "did not detect any paired-end or single-end files"
+end
+files_read_type = if dict["paired"]["status"] == "yes"
+    "paired"
+elseif dict["single"]["status"] == "yes"
+    "single"
+else
+    @error "did not detect any paired-end or single-end files"
+end
+YRUtils.BioUtils.trimgalore(files_dict, files_read_type, clean_fastq_dir;
+    trimgalore_options="--cores 4 --phred33 --quality 20 --length 30 --trim-n",
+    num_jobs=1)
+```
+
+### FASTQC over clean FASTQ files
+
+```{julia}
+using YRUtils
+
+clean_fastq_dir = "clean_fastq"
+clean_fastqc_dir = "clean_fastqc"
+
+mkpath(clean_fastqc_dir)
+clean_fastq_files = YRUtils.BaseUtils.list_files(clean_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+YRUtils.BioUtils.fastqc(clean_fastq_files, clean_fastqc_dir;
+    fastqc_options="--threads 4", multiqc_options="--zip-data-dir", num_jobs=4)
+```
+
+### Generate reference sequences
+
+Write each reference sequence containing CRE as well as other necessary sequences and its ID into a FASTA file, which will be used later to build Bowtie2 reference index.
+
+```{julia}
+using CSV, DataFrames
+
+left_seq = "TTCTCTGGCCTAACTGTCTAGACCTGCAGGAGGACCGGATCAACT"
+right_seq = "CATTGCGTGAACCGACACTAGAGGGTATATAATGGAAGCTCGACTTCCAGCTTGGCAATCCGGTACTGTGCAAAGTGAACACATCGCTAAGCGAAAGCTAAGNNNNNNNNNNNNNNNACCGGTCGCCACCATGGTGAGCAAGG"
+mpra_test_file = "ref/2w_library.165bp.no_enzyme_cutting_sites.tsv"
+mpra_ctl_file = "ref/null_sequences.tsv"
+output_mpra_test_file = "ref/2w_library.165bp.no_enzyme_cutting_sites.dealed.tsv"
+output_mpra_ctl_file = "ref/null_sequences.dealed.tsv"
+output_ref_fa_file = "ref/mpra_ref.fa"
+
+mpra_test = CSV.read(mpra_test_file, DataFrame)
+mpra_test = unique(mpra_test)
+mpra_test = transform(mpra_test, "PSCE", "extended_mm10_seq" => (x -> string.(left_seq, x, right_seq)) => "attached_seq")
+mpra_test = groupby(mpra_test, "PSCE")
+mpra_test = transform(mpra_test, nrow => "num_per_PSCE", eachindex => "PSCE_sub_rank")
+mpra_test = transform(mpra_test, ["PSCE", "PSCE_sub_rank", "num_per_PSCE"] => ByRow((x, y, z) -> begin
+    if z == 1
+        x
+    else
+        string.(x, "_", y)
+    end
+end) => "PSCE_new_id")
+
+CSV.write(output_mpra_test_file, mpra_test; delim="\t", append=false)
+
+mpra_ctl = CSV.read(mpra_ctl_file, DataFrame)
+mpra_ctl = unique(mpra_ctl)
+mpra_ctl = transform(mpra_ctl, eachindex => "rank")
+mpra_ctl = transform(mpra_ctl, "rank" => (x -> string.("CTL", x)) => "PSCE", "seq" => (x -> string.(left_seq, x, right_seq)) => "attached_seq")
+
+CSV.write(output_mpra_ctl_file, mpra_ctl; delim="\t", append=false)
+
+ref_fa = vcat(string.(">", mpra_test[!, "PSCE_new_id"], "\n", mpra_test[!, "attached_seq"]),
+    string.(">", mpra_ctl[!, "PSCE"], "\n", mpra_ctl[!, "attached_seq"]))
+
+open(output_ref_fa_file, "w") do io
+    for line in ref_fa
+        println(io, line)
+    end
+end
+```
+
+### Build Bowtie2 index
+
+```{julia}
+using YRUtils
+
+ref_fa = "ref/mpra_ref.fa"
+bowtie2_index_dir = "bowtie2_index"
+bowtie2_index_prefix = "mpra_ref"
+bowtie2_n_threads = 40
+log_dir = "log"
+tmp_dir = "tmp"
+
+mkpath(bowtie2_index_dir)
+mkpath(log_dir)
+mkpath(tmp_dir)
+if !isnothing(match(r"\.gz$", ref_fa))
+    new_ref_fa = joinpath(tmp_dir, replace(basename(ref_fa), r"\.gz$" => ""))
+    YRUtils.ShellUtils.pigz(ref_fa, new_ref_fa; decompress=true, keep=true)
+else
+    new_ref_fa = ref_fa
+end
+cmd = pipeline(Cmd(string.(["bowtie2-build", "--threads", bowtie2_n_threads, "-f", new_ref_fa, joinpath(bowtie2_index_dir, bowtie2_index_prefix)]));
+    stdout=joinpath(log_dir, "build_bowtie2_index.log"),
+    stderr=joinpath(log_dir, "build_bowtie2_index.log"))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+if !isnothing(match(r"\.gz$", ref_fa))
+    rm(new_ref_fa)
+end
+```
+
+### Align reads with Bowtie2
+
+```{julia}
+using YRUtils
+
+clean_fastq_dir = "clean_fastq"
+bam_dir = "bam"
+tmp_dir = "tmp"
+log_dir = "log"
+bowtie2_n_threads = 40
+bowtie2_index = "bowtie2_index/mpra_ref"
+samtools_n_threads = 40
+samtools_mem = "768M"
+
+mkpath(bam_dir)
+mkpath(log_dir)
+clean_fastq_files = YRUtils.BaseUtils.list_files(clean_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+dict = YRUtils.BioUtils.auto_detect_fastq_read_type(clean_fastq_files)
+files_dict = if dict["paired"]["status"] == "yes"
+    dict["paired"]["dict"]
+elseif dict["single"]["status"] == "yes"
+    dict["single"]["dict"]
+else
+    @error "did not detect any paired-end or single-end files"
+end
+files_read_type = if dict["paired"]["status"] == "yes"
+    "paired"
+elseif dict["single"]["status"] == "yes"
+    "single"
+else
+    @error "did not detect any paired-end or single-end files"
+end
+if files_read_type == "paired"
+    for sample in keys(files_dict)
+        for replicate in keys(files_dict[sample])
+            r1_fq_files = files_dict[sample][replicate]["R1"]
+            r2_fq_files = files_dict[sample][replicate]["R2"]
+            bam_file = joinpath(bam_dir, string(sample, "_", replicate, ".chr_srt.bam"))
+
+            if length(r1_fq_files) > 1
+                r1_fq_file = joinpath(tmp_dir, string(sample, "_", replicate, ".R1.fq.gz"))
+                cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+                    string("zcat -f ", join(r1_fq_files, " "),
+                        " | pigz -n -c > ",
+                        r1_fq_file)]))
+                @info string("running ", cmd, " ...")
+                run(cmd; wait=true)
+            else
+                r1_fq_file = r1_fq_files[1]
+            end
+            if length(r2_fq_files) > 1
+                r2_fq_file = joinpath(tmp_dir, string(sample, "_", replicate, ".R2.fq.gz"))
+                cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c",
+                    string("zcat -f ", join(r2_fq_files, " "),
+                        " | pigz -n -c > ",
+                        r2_fq_file)]))
+                @info string("running ", cmd, " ...")
+                run(cmd; wait=true)
+            else
+                r2_fq_file = r2_fq_files[1]
+            end
+
+            cmd = pipeline(
+                Cmd(
+                    string.(["/usr/bin/bash", "-e", "-c",
+                        string("bowtie2 --np 0 -p ", bowtie2_n_threads, " -x ", bowtie2_index, " -1 ", r1_fq_file, " -2 ", r2_fq_file,
+                            " | samtools view -S -u - | samtools sort -@ ", samtools_n_threads, " -m ", samtools_mem, " - -o ", bam_file)]),
+                );
+                stdout=joinpath(log_dir, "bowtie2_align.log"),
+                stderr=joinpath(log_dir, "bowtie2_align.log"),
+                append=true)
+            @info string("running ", cmd, " ...")
+            open(io -> println(io, string("running ", cmd, " ...")),
+                joinpath(log_dir, "bowtie2_align.log"), "a")
+            run(cmd; wait=true)
+        end
+    end
+end
+
+cmd = Cmd(string.(["/usr/bin/bash", "-e", "-c", string("rm -rf ", joinpath(tmp_dir, "*"))]))
+@info string("running ", cmd, " ...")
+run(cmd; wait=true)
+```
+
+### Remove reads unmapped and with low quality
+
+```{julia}
+using YRUtils
+
+bam_dir = "bam"
+high_qual_bam_dir = "high_qual_bam"
+log_dir = "log"
+tmp_dir = "tmp"
+samtools_n_threads = 40
+samtools_mem = "768M"
+map_qual = 30
+
+mkpath(high_qual_bam_dir)
+bam_files = YRUtils.BaseUtils.list_files(bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    tmp_name_srt_bam_file = joinpath(tmp_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".name_srt.bam"))
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools view -u -F 1804 -f 2 -q ", map_qual, " ", bam_file,
+                " | samtools sort -n -@ ", samtools_n_threads, " -m ", samtools_mem, " - -o ", tmp_name_srt_bam_file)]));
+        stdout=joinpath(log_dir, "reads_filter.log"),
+        stderr=joinpath(log_dir, "reads_filter.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "reads_filter.log"), "a")
+    run(cmd; wait=true)
+
+    tmp_fixmate_bam_file = joinpath(tmp_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".fixmate.bam"))
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools fixmate -@ ", samtools_n_threads, " -r ", tmp_name_srt_bam_file, " ", tmp_fixmate_bam_file)]));
+        stdout=joinpath(log_dir, "reads_filter.log"),
+        stderr=joinpath(log_dir, "reads_filter.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "reads_filter.log"), "a")
+    run(cmd; wait=true)
+
+    filtered_bam_file = joinpath(high_qual_bam_dir, replace(basename(bam_file), r"\.\w+\.bam$" => ".chr_srt.bam"))
+    cmd = pipeline(Cmd(string.(["/usr/bin/bash", "-e", "-c",
+            string("samtools view -u -F 1804 -f 2 ", tmp_fixmate_bam_file,
+                " | samtools sort -@ ", samtools_n_threads, " -m ", samtools_mem, " - -o ", filtered_bam_file)]));
+        stdout=joinpath(log_dir, "reads_filter.log"),
+        stderr=joinpath(log_dir, "reads_filter.log"),
+        append=true)
+    @info string("running ", cmd, " ...")
+    open(io -> println(io, string("running ", cmd, " ...")),
+        joinpath(log_dir, "reads_filter.log"), "a")
+    run(cmd; wait=true)
+
+    rm.([tmp_name_srt_bam_file, tmp_fixmate_bam_file])
+end
+```
+
+### Extract CRE-Barcode pairs
+
+```{julia}
+using XAM, FASTX, CSV, DataFrames, YRUtils, Serialization
+
+function extract_cre_bc_pairs(bam_file::AbstractString, ref_dict::Dict{String,String};
+    barcode_length::Int=15, quality_scheme::Int=33)
+    valid_dna_bases = ("A", "T", "C", "G")
+
+    total_num_records = 0
+    xn_num_records = 0
+    complete_xn_num_records = 0
+    valid_xn_num_records = 0
+    typical_aln_vec_dict = Dict{String,Vector{String}}()
+
+    cre_bc_vec = Tuple{String,String}[]
+    reader = open(BAM.Reader, bam_file)
+    record = BAM.Record()
+    while !eof(reader)
+        empty!(record)
+        read!(reader, record)
+        total_num_records += 1
+        # The optional field XN:i:<N> reports the number of ambiguous reference characters (e.g. N) overlapped by an alignment
+        if haskey(record, "XN") && record["XN"] == barcode_length
+            xn_num_records += 1
+            ref_name = BAM.refname(record)
+            # The leftmost mapping position
+            # BAM is 0-based, while SAM is 1-based
+            # BAM.position() gets the 1-based leftmost mapping position of record
+            ref_pos = BAM.position(record)
+            ref_seq = ref_dict[ref_name]
+            cigar_str = BAM.cigar(record)
+            query_seq = string(BAM.sequence(record))
+            query_qual_char_seq = join(Char.(BAM.quality(record) .+ quality_scheme))
+
+            aln_vec = collect(YRUtils.BioUtils.parse_cigar(cigar_str, ref_seq, query_seq, ref_pos; truncate_ref=false))
+            qual_aln_vec = collect(YRUtils.BioUtils.parse_cigar(cigar_str, ref_seq, query_qual_char_seq, ref_pos; truncate_ref=false))
+
+            ref_m = match(Regex(string("N{", barcode_length, "}")), aln_vec[1])
+            if !isnothing(ref_m)
+                complete_xn_num_records += 1
+                extract_range = ref_m.offset:(ref_m.offset+barcode_length-1)
+                barcode_seq = aln_vec[2][extract_range]
+                barcode_qual_char_seq = qual_aln_vec[2][extract_range]
+                if all(split(barcode_seq, "") .∈ Ref(valid_dna_bases)) && all([Int(c) - quality_scheme for c in barcode_qual_char_seq] .>= base_qual)
+                    valid_xn_num_records += 1
+                    push!(cre_bc_vec, (ref_name, barcode_seq))
+                    typical_aln_vec_dict[string(ref_name, ":", barcode_seq)] = aln_vec
+                end
+            end
+        end
+    end
+    close(reader)
+
+    cre_bc_gdf = groupby(DataFrame(cre_bc_vec, [:cre, :barcode]), [:cre, :barcode])
+    uniq_cre_bc_df = sort(combine(cre_bc_gdf, nrow => "num", proprow => "prop"), :num, rev=true)
+
+    open(replace(bam_file, r"\.bam$" => ".extract_cre_bc_pairs.log"), "w") do io
+        println(io, string(
+            "The number of records in total: ", total_num_records, "\n",
+            "The number of records with XN field: ", xn_num_records, "\n",
+            "The number of records with complete barcode: ", complete_xn_num_records, "\n",
+            "The number of records passing base and quality check: ", valid_xn_num_records, "\n",
+            "The number of records non-redundant: ", nrow(uniq_cre_bc_df)
+        ))
+    end
+
+    return [uniq_cre_bc_df, typical_aln_vec_dict]
+end
+
+ref_file = "ref/mpra_ref.fa"
+high_qual_bam_dir = "high_qual_bam"
+base_qual = 20
+
+# Read in reference sequences
+ref_dict = FASTAReader(open(ref_file, "r")) do reader
+    dict = Dict{String,String}()
+    for record in reader
+        dict[identifier(record)] = sequence(record)
+    end
+    return dict
+end
+
+bam_files = YRUtils.BaseUtils.list_files(high_qual_bam_dir, r"\.bam$", recursive=false, full_name=true)
+for bam_file in bam_files
+    # Extract CRE-Barcode pairs
+    cre_bc_res = extract_cre_bc_pairs(bam_file, ref_dict)
+
+    CSV.write(replace(bam_file, r"\.bam$" => ".uniq_cre_bc_pairs.tsv"),
+        cre_bc_res[1]; delim="\t", append=false, writeheader=true)
+
+    # obj = open(jls_file, "r") do io
+    #     deserialize(io)
+    # end
+    open(replace(bam_file, r"\.bam$" => ".typical_cre_bc_aligned_sequences.jls"), "w") do io
+        serialize(io, cre_bc_res[2])
+    end
+
+    rand_keys = rand(keys(cre_bc_res[2]), 100)
+    rand_dict = Dict(k => cre_bc_res[2][k] for k in rand_keys)
+    YRUtils.BioUtils.show_align(rand_dict,
+        replace(bam_file, r"\.bam$" => ".typical_cre_bc_aligned_sequences.100.html");
+        wrap_width=120)
+end
+```
+
+### Quality check
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+library(ggprism)
+
+input_dir <- "high_qual_bam"
+
+cre_bc_files <- list.files(input_dir, pattern = "\\.tsv$", full.names = TRUE, recursive = FALSE)
+for (cre_bc_file in cre_bc_files) {
+    cre_bc_df <- vroom(cre_bc_file) %>%
+        select(cre, barcode) %>%
+        distinct()
+
+    cre_count_df <- count(cre_bc_df, cre) %>%
+        mutate(type = if_else(str_detect(cre, "^CTL"), "CTL", "CRE")) %>%
+        rename(cre_bc = cre)
+    bc_count_df <- count(cre_bc_df, barcode) %>%
+        mutate(type = "BC") %>%
+        rename(cre_bc = barcode)
+    count_df <- bind_rows(cre_count_df, bc_count_df)
+
+    cre_quantiles <- quantile(count_df$n[count_df$type %in% c("CTL", "CRE")], probs = seq(0, 1, 0.1))
+    cre_only_quantiles <- quantile(count_df$n[count_df$type == "CRE"], probs = seq(0, 1, 0.1))
+    ctl_only_quantiles <- quantile(count_df$n[count_df$type == "CTL"], probs = seq(0, 1, 0.1))
+    bc_quantiles <- quantile(count_df$n[count_df$type == "BC"], probs = seq(0, 1, 0.1))
+    type_nums <- table(count_df$type)
+
+    paste0(
+        "1. CRE/CTL quantiles (", type_nums["CTL"] + type_nums["CRE"], "): \n",
+        paste0(paste0(names(cre_quantiles), "\t", cre_quantiles), collapse = "\n"), "\n\n",
+        "2. CRE only quantiles (", type_nums["CRE"], "): \n",
+        paste0(paste0(names(cre_only_quantiles), "\t", cre_only_quantiles), collapse = "\n"), "\n\n",
+        "3. CTL only quantiles (", type_nums["CTL"], "): \n",
+        paste0(paste0(names(ctl_only_quantiles), "\t", ctl_only_quantiles), collapse = "\n"), "\n\n",
+        "4. BC quantiles (", type_nums["BC"], "): \n",
+        paste0(paste0(names(bc_quantiles), "\t", bc_quantiles), collapse = "\n")
+    ) %>% vroom_write_lines(file = gsub("\\.tsv$", "\\.quantiles.txt", cre_bc_file))
+
+    p <- ggplot(count_df, aes(type, log2(n), fill = type, color = type)) +
+        geom_violin(scale = "width", alpha = 0.25, trim = TRUE) +
+        geom_boxplot(width = 0.2, outliers = FALSE, alpha = 0.25) +
+        scale_y_continuous(expand = expansion(mult = c(0.05, 0))) +
+        labs(
+            x = "Sequence Type",
+            y = "log2(Count)"
+        ) +
+        theme_prism(base_size = 20, base_family = "Arial", border = FALSE) +
+        theme(legend.position = "none")
+    ppreview(p, file = gsub("\\.tsv$", "\\.violin.pdf", cre_bc_file))
+}
+```
+
+### Merge all CRE-Barcode pairs
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+input_dirs <- c(
+    "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230/high_qual_bam",
+    "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20231027/high_qual_bam",
+    "/data/users/dell/mpra/link_barcode_to_cre/pcr_v20230922/high_qual_bam"
+)
+output_dir <- "/data/users/dell/mpra/link_barcode_to_cre/final_result"
+
+files <- list.files(input_dirs, pattern = "\\.tsv$", recursive = FALSE, full.names = TRUE)
+cre_bc_df <- tibble()
+for (file in files) {
+    cre_bc_df <- bind_rows(
+        cre_bc_df,
+        vroom(file) %>% select(cre, barcode)
+    )
+}
+cre_bc_df <- distinct(cre_bc_df)
+one_cre_barocdes <- cre_bc_df %>%
+    group_by(barcode) %>%
+    count() %>%
+    filter(n == 1) %>%
+    pull(barcode) %>%
+    unique()
+one_cre_bc_df <- cre_bc_df %>%
+    filter(barcode %in% one_cre_barocdes) %>%
+    distinct()
+
+vroom_write(cre_bc_df, file = file.path(output_dir, "redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
+vroom_write(one_cre_bc_df, file = file.path(output_dir, "non_redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
+```
+
+## Count barcodes
+
+Before running any of the following steps, you should rename your FASTQ files in this form: `ID_(RNA|DNA)_repN[_partN].R[123].(fq|fastq).gz` (`ID` can only contain `[a-zA-Z0-9]`; `N` can only contain `[0-9]`).
+
+```{julia}
+work_dir = "/data/users/dell/mpra/count_barcode/15bp_v20240627"
+
+cd(work_dir)
+```
+
+```{r}
+work_dir <- "/data/users/dell/mpra/count_barcode/15bp_v20240627"
+
+setwd(work_dir)
+```
+
+### MD5SUM check over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+md5_file = "md5.txt"
+md5_check_file = "md5_check.txt"
+
+cd(raw_fastq_dir)
+YRUtils.BaseUtils.md5_check(md5_file, md5_check_file)
+cd(work_dir)
+```
+
+### FASTQC over raw FASTQ files
+
+```{julia}
+using YRUtils
+
+raw_fastq_dir = "raw_fastq"
+raw_fastqc_dir = "raw_fastqc"
+
+mkpath(raw_fastqc_dir)
+raw_fastq_files = YRUtils.BaseUtils.list_files(raw_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
+YRUtils.BioUtils.fastqc(raw_fastq_files, raw_fastqc_dir;
+    fastqc_options="--threads 4", multiqc_options="--zip-data-dir", num_jobs=4)
+```
+
+### Count barcodes
+
+```{julia}
+using FASTX, DataFrames, CSV, YRUtils, CodecZlib
+
+raw_fastq_dir = "/data/users/dell/mpra/count_barcode/15bp_v20240627/raw_fastq"
+cre_bc_file = "/data/users/dell/mpra/link_barcode_to_cre/final_result/redundant_cre_bc_pairs.tsv"
+raw_bc_umi_dir = "raw_bc_umi"
+base_qual = 20
+seqkit_nthreads = 40
+
+mkpath(raw_bc_umi_dir)
+cre_bc_df = CSV.read(cre_bc_file, DataFrame; header=true, delim="\t")
+uniq_barcodes = Set(cre_bc_df[:, :barcode])
+
+raw_fastq_file_name_pattern = r".+/(?<id>[a-zA-Z0-9]+)_(?<type>RNA|DNA)_(?<rep>rep[0-9]+)(_(?<tech>part[0-9]+))?\.(?<read>R[123])\.(fq|fastq)\.gz$"
+raw_fastq_files = YRUtils.BioUtils.list_files(raw_fastq_dir, raw_fastq_file_name_pattern; recursive=false, full_name=true)
+raw_fastq_nums = YRUtils.BioUtils.fq_num(raw_fastq_files, seqkit_nthreads)
+ms = match.(raw_fastq_file_name_pattern, raw_fastq_files)
+metadata_vec = Vector{NTuple{7,String}}(undef, length(ms))
+for i in 1:length(ms)
+    metadata_vec[i] = (ms[i].match, ms[i]["id"], ms[i]["type"], ms[i]["rep"], ms[i]["tech"], ms[i]["read"], string(raw_fastq_nums[ms[i].match]))
+end
+df = unique(DataFrame(metadata_vec, [:file, :id, :type, :rep, :tech, :read, :num_seqs]))
+df = transform(
+    df,
+    [:id, :type, :rep, :tech] => ByRow((id, type, rep, tech) -> join([id, type, rep, tech], "_")) => :tech_sample,
+    [:id, :type, :rep] => ByRow((id, type, rep) -> join([id, type, rep], "_")) => :rep_sample,
+    [:id, :type] => ByRow((id, type) -> join([id, type], "_")) => :type_sample
+)
+tech_gdf = groupby(df, :tech_sample)
+CSV.write(joinpath(raw_bc_umi_dir, "fq_metadata.tsv"), df; header=true, delim="\t", append=false)
+
+df_dict = Dict(unique(read_df[:, :tech_sample])[1] => DataFrame() for read_df in tech_gdf)
+for read_df in tech_gdf
+    # Read in reads
+    read_dict = Dict(read_type => Vector{Tuple{String,String,String}}(undef, parse(Int64, num_seqs)) for (read_type, num_seqs) in collect(zip(read_df[:, :read], read_df[:, :num_seqs])))
+    Threads.@threads for (read_type, num_seqs, fq_file) in collect(zip(read_df[:, :read], read_df[:, :num_seqs], read_df[:, :file]))
+        @info string("start parsing ", fq_file, " with read type ", read_type, " and the number of sequences ", num_seqs, " ...")
+        FASTQReader(GzipDecompressorStream(open(fq_file))) do reader
+            record = FASTQ.Record()
+            i = 0
+            while !eof(reader)
+                i += 1
+                empty!(record)
+                read!(reader, record)
+                read_dict[read_type][i] = (identifier(record), sequence(record), join(collect(quality_scores(record)), "/"))
+            end
+            @info string("read in ", i, " sequences in total for ", fq_file)
+            if i != parse(Int64, num_seqs)
+                @error string("parsing file ", fq_file, " failed!")
+            end
+        end
+        @info string("parsing ", fq_file, " with read type ", read_type, " and the number of sequences ", num_seqs, " done!")
+    end
+
+    # Count qualified barcodes and their UMIs
+    len_vec = length.(values(read_dict))
+    # The three files should have the same number of lines
+    if length(unique(len_vec)) == 1
+        bc_umi_vec = Vector{Tuple{String,String,String,Vararg{Bool,9}}}(undef, len_vec[1])
+        Threads.@threads for i in 1:len_vec[1]
+            # Read IDs should be identical across R1, R2, and R3
+            if read_dict["R1"][i][1] == read_dict["R2"][i][1] == read_dict["R3"][i][1]
+                bc_umi_vec[i] = (
+                    # Read 1
+                    read_dict["R1"][i][2],
+                    # Read 2
+                    read_dict["R2"][i][2],
+                    # UMI
+                    read_dict["R3"][i][2],
+                    # Read sequences should only contain A, T, C, and G across R1, R2, and R3
+                    !occursin("N", string(read_dict["R1"][i][2], read_dict["R2"][i][2], read_dict["R3"][i][2])),
+                    # All base qualities >= base_qual across R1, R2, and R3
+                    all(parse.(Int, split(string(read_dict["R1"][i][3], "/", read_dict["R2"][i][3], "/", read_dict["R3"][i][3]), "/")) .>= base_qual),
+                    # Read 1 and read 2 should be reverse and complementary
+                    YRUtils.BioUtils.rev_com_dna_seq(read_dict["R1"][i][2]) == read_dict["R2"][i][2],
+                    # Either read 1 or read 2 should be in the barcode library (not both in theory)
+                    # Read 1 in the barcode library?
+                    read_dict["R1"][i][2] in uniq_barcodes,
+                    # Read 2 in the barcode library?
+                    read_dict["R2"][i][2] in uniq_barcodes,
+                    # The reverse sequence of read 1 in the barcode library?
+                    YRUtils.BioUtils.rev_seq(read_dict["R1"][i][2]) in uniq_barcodes,
+                    # The complementary sequence of read 1 in the barcode library?
+                    YRUtils.BioUtils.com_dna_seq(read_dict["R1"][i][2]) in uniq_barcodes,
+                    # The reverse sequence of read 2 in the barcode library?
+                    YRUtils.BioUtils.rev_seq(read_dict["R2"][i][2]) in uniq_barcodes,
+                    # The complementary sequence of read 2 in the barcode library?
+                    YRUtils.BioUtils.com_dna_seq(read_dict["R2"][i][2]) in uniq_barcodes
+                )
+            else
+                @error "read IDs are not identical across R1, R2, and R3"
+            end
+        end
+    else
+        @error "length(R1) == length(R2) == length(R3) is not true"
+    end
+
+    # Write statistics
+    col4, col5, col6, col7, col8, col9, col10, col11, col12 = (
+        getindex.(bc_umi_vec, 4),
+        getindex.(bc_umi_vec, 5),
+        getindex.(bc_umi_vec, 6),
+        getindex.(bc_umi_vec, 7),
+        getindex.(bc_umi_vec, 8),
+        getindex.(bc_umi_vec, 9),
+        getindex.(bc_umi_vec, 10),
+        getindex.(bc_umi_vec, 11),
+        getindex.(bc_umi_vec, 12)
+    )
+    open(joinpath(raw_bc_umi_dir, "fq_read_stats.txt"), "a") do io
+        stat_str = string(
+            "==> ", unique(read_df[:, :tech_sample])[1], " <==\n",
+            "1. The number of reads in total: ", len_vec[1], "\n\n",
+            "2. % reads without Ns (", sum(col4), "): ", sum(col4) / len_vec[1], "\n",
+            "3. % reads with base qualities >= ", base_qual, " (", sum(col5), "): ", sum(col5) / len_vec[1], "\n",
+            "4. % reads passing 2 and 3: (", sum(col4 .&& col5), "): ", sum(col4 .&& col5) / len_vec[1], "\n\n",
+            "5. % reads (R1 and R2 are reverse and complementary) (", sum(col6), "): ", sum(col6) / len_vec[1], "\n",
+            "6. % reads passing 2, 3, and 5 (", sum(col4 .&& col5 .&& col6), "): ", sum(col4 .&& col5 .&& col6) / len_vec[1], "\n\n",
+            "7. % reads of R1 in the library (", sum(col7), "): ", sum(col7) / len_vec[1], "\n",
+            "8. % reads passing 2, 3, 5 and 7 (", sum(col4 .&& col5 .&& col6 .&& col7), "): ", sum(col4 .&& col5 .&& col6 .&& col7) / len_vec[1], "\n\n",
+            "9. % reads of R2 in the library (", sum(col8), "): ", sum(col8) / len_vec[1], "\n",
+            "10. % reads passing 2, 3, 5 and 9 (", sum(col4 .&& col5 .&& col6 .&& col8), "): ", sum(col4 .&& col5 .&& col6 .&& col8) / len_vec[1], "\n\n",
+            "11. % reads (both R1 and R2 are in the library) (", sum(col7 .&& col8), "): ", sum(col7 .&& col8) / len_vec[1], "\n",
+            "12. % reads passing 2, 3, 5 and 11 (", sum(col4 .&& col5 .&& col6 .&& col7 .&& col8), "): ", sum(col4 .&& col5 .&& col6 .&& col7 .&& col8) / len_vec[1], "\n\n",
+            "13. % reads (one of R1 and R2 in the library, not both) (", sum(col7 .⊻ col8), "): ", sum(col7 .⊻ col8) / len_vec[1], "\n",
+            "14. % reads passing 2, 3, 5 and 13 (", sum(col4 .&& col5 .&& col6 .&& (col7 .⊻ col8)), "): ", sum(col4 .&& col5 .&& col6 .&& (col7 .⊻ col8)) / len_vec[1], "\n\n",
+            "15. % reverse reads of R1 in the library (", sum(col9), "): ", sum(col9) / len_vec[1], "\n",
+            "16. % reads passing 2, 3, 5 and 15 (", sum(col4 .&& col5 .&& col6 .&& col9), "): ", sum(col4 .&& col5 .&& col6 .&& col9) / len_vec[1], "\n\n",
+            "17. % complementary reads of R1 in the library (", sum(col10), "): ", sum(col10) / len_vec[1], "\n",
+            "18. % reads passing 2, 3, 5 and 17 (", sum(col4 .&& col5 .&& col6 .&& col10), "): ", sum(col4 .&& col5 .&& col6 .&& col10) / len_vec[1], "\n\n",
+            "19. % reverse reads of R2 in the library (", sum(col11), "): ", sum(col11) / len_vec[1], "\n",
+            "20. % reads passing 2, 3, 5 and 19 (", sum(col4 .&& col5 .&& col6 .&& col11), "): ", sum(col4 .&& col5 .&& col6 .&& col11) / len_vec[1], "\n\n",
+            "21. % complementary reads of R2 in the library (", sum(col12), "): ", sum(col12) / len_vec[1], "\n",
+            "22. % reads passing 2, 3, 5 and 21 (", sum(col4 .&& col5 .&& col6 .&& col12), "): ", sum(col4 .&& col5 .&& col6 .&& col12) / len_vec[1], "\n\n\n"
+        )
+        print(io, stat_str)
+    end
+
+    # Filter out invalid Barcode-UMI pairs
+    valid_bc_umi_vec = bc_umi_vec[col4.&&col5.&&col6.&&(col7.⊻col8)]
+    df_dict[unique(read_df[:, :tech_sample])[1]] = DataFrame(
+        [[(x[1], x[3]) for x in valid_bc_umi_vec[getindex.(valid_bc_umi_vec, 7)]]; [(x[2], x[3]) for x in valid_bc_umi_vec[getindex.(valid_bc_umi_vec, 8)]]],
+        [:barcode, :umi]
+    )
+    df_dict[unique(read_df[:, :tech_sample])[1]][!, :tech_sample] .= unique(read_df[:, :tech_sample])[1]
+end
+bc_umi_df = reduce(vcat, collect(values(df_dict)); cols=:setequal)
+CSV.write(joinpath(raw_bc_umi_dir, "raw_bc_umi_pairs.tsv"), bc_umi_df; header=true, delim="\t", append=false)
+```
+
+### Attach barcodes to CREs
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(ggprism)
+library(YRUtils)
+
+raw_bc_umi_pairs_file <- "raw_bc_umi/raw_bc_umi_pairs.tsv"
+# Here, we only keep those CRE-Barcode pairs, where each barcode is assigned to only one CRE
+cre_bc_file <- "/data/users/dell/mpra/link_barcode_to_cre/final_result/non_redundant_cre_bc_pairs.tsv"
+output_dir <- "cre_bc_count"
+
+dir.create(output_dir)
+cre_bc_df <- vroom(cre_bc_file)
+raw_bc_umi_pairs_df <- vroom(raw_bc_umi_pairs_file)
+
+# Count barcodes based on UMIs
+biorep_bc_count_df <- raw_bc_umi_pairs_df %>%
+    mutate(rep_sample = gsub("_part[0-9]+$", "", tech_sample)) %>%
+    select(-all_of(c("tech_sample"))) %>%
+    distinct() %>%
+    group_by(rep_sample, barcode) %>%
+    # Count the number of occurrences of each barcode in each biological replicate
+    count(name = "barcode_count") %>%
+    ungroup() %>%
+    group_by(rep_sample) %>%
+    arrange(desc(barcode_count), .by_group = TRUE) %>%
+    ungroup()
+vroom_write(biorep_bc_count_df, file = file.path(output_dir, "biorep_bc_count.tsv"))
+
+# Attach CREs to barcodes
+biorep_cre_bc_count_df <- biorep_bc_count_df %>%
+    inner_join(cre_bc_df, by = "barcode", relationship = "many-to-many") %>%
+    group_by(rep_sample) %>%
+    arrange(desc(barcode_count), .by_group = TRUE) %>%
+    ungroup()
+vroom_write(biorep_cre_bc_count_df, file = file.path(output_dir, "biorep_cre_bc_count.tsv"))
+
+# Count the number of unique barcodes detected in each biological replicate
+bc_num_each_biorep <- biorep_bc_count_df %>%
+    group_by(rep_sample) %>%
+    count(name = "barcode_num") %>%
+    ungroup()
+vroom_write(bc_num_each_biorep, file = file.path(output_dir, "bc_num_each_biorep.tsv"))
+
+# The distribution of the number of barcodes belonging to each CRE
+# The distribution of the number of CREs belonging to each barcode
+left_cre_bc_df <- biorep_cre_bc_count_df %>%
+    select(barcode, cre) %>%
+    distinct()
+bc_count_df <- left_cre_bc_df %>%
+    group_by(barcode) %>%
+    count() %>%
+    rename(cre_bc = barcode) %>%
+    mutate(type = "BC")
+cre_count_df <- left_cre_bc_df %>%
+    group_by(cre) %>%
+    count() %>%
+    rename(cre_bc = cre) %>%
+    mutate(type = if_else(str_detect(cre_bc, "^CTL"), "CTL", "CRE"))
+count_df <- bind_rows(cre_count_df, bc_count_df)
+
+cre_quantiles <- quantile(count_df$n[count_df$type %in% c("CTL", "CRE")], probs = seq(0, 1, 0.1))
+cre_only_quantiles <- quantile(count_df$n[count_df$type == "CRE"], probs = seq(0, 1, 0.1))
+ctl_only_quantiles <- quantile(count_df$n[count_df$type == "CTL"], probs = seq(0, 1, 0.1))
+bc_quantiles <- quantile(count_df$n[count_df$type == "BC"], probs = seq(0, 1, 0.1))
+type_nums <- table(count_df$type)
+
+paste0(
+    "1. CRE/CTL quantiles (", type_nums["CTL"] + type_nums["CRE"], "): \n",
+    paste0(paste0(names(cre_quantiles), "\t", cre_quantiles), collapse = "\n"), "\n\n",
+    "2. CRE only quantiles (", type_nums["CRE"], "): \n",
+    paste0(paste0(names(cre_only_quantiles), "\t", cre_only_quantiles), collapse = "\n"), "\n\n",
+    "3. CTL only quantiles (", type_nums["CTL"], "): \n",
+    paste0(paste0(names(ctl_only_quantiles), "\t", ctl_only_quantiles), collapse = "\n"), "\n\n",
+    "4. BC quantiles (", type_nums["BC"], "): \n",
+    paste0(paste0(names(bc_quantiles), "\t", bc_quantiles), collapse = "\n")
+) %>% vroom_write_lines(file = file.path(output_dir, "quantiles.txt"))
+
+p <- ggplot(count_df, aes(type, log2(n), fill = type, color = type)) +
+    geom_violin(scale = "width", alpha = 0.25, trim = TRUE) +
+    geom_boxplot(width = 0.2, outliers = FALSE, alpha = 0.25) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0))) +
+    labs(
+        x = "Sequence Type",
+        y = "log2(Count)"
+    ) +
+    theme_prism(base_size = 20, base_family = "Arial", border = FALSE) +
+    theme(legend.position = "none")
+ppreview(p, file = file.path(output_dir, "violin.pdf"))
+```
