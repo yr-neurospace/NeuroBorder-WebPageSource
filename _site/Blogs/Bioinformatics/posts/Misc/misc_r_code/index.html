@@ -198,7 +198,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">March 26, 2025</p>
+        <p class="date-modified">March 27, 2025</p>
       </div>
     </div>
       
@@ -214,6 +214,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a></li>
   <li><a href="#plot-volcano-plot-in-batch" id="toc-plot-volcano-plot-in-batch" class="nav-link" data-scroll-target="#plot-volcano-plot-in-batch"><span class="header-section-number">2</span> Plot volcano plot in batch</a></li>
+  <li><a href="#visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat" id="toc-visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat" class="nav-link" data-scroll-target="#visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat"><span class="header-section-number">3</span> Visualize scRNA-Seq expression of a single gene using dot plot and violin plot of Seurat</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/yr-neurospace/NeuroBorder/edit/main/Blogs/Bioinformatics/posts/Misc/misc_r_code/index.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/blob/main/Blogs/Bioinformatics/posts/Misc/misc_r_code/index.qmd" class="toc-action"><i class="bi empty"></i>View source</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
 </nav>
@@ -318,6 +319,53 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ppreview</span>(p, <span class="at">file =</span> <span class="fu">file.path</span>(output_dir, <span class="fu">gsub</span>(<span class="st">"</span><span class="sc">\\</span><span class="st">.(tsv|txt|csv)$"</span>, <span class="st">".pdf"</span>, <span class="fu">basename</span>(file))))</span>
 <span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat"><span class="header-section-number">3</span> Visualize scRNA-Seq expression of a single gene using dot plot and violin plot of Seurat</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Seurat)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(YRUtils)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>rna_rds_file <span class="ot">&lt;-</span> <span class="st">"/data/users/yangrui/sc_omics_ref_datasets/human/dataset_2/ana/res/rna_to_umap.rds"</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>output_dir <span class="ot">&lt;-</span> <span class="st">"/home/yangrui/temp"</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>target_gene_names <span class="ot">&lt;-</span> <span class="st">"BTN3A2"</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>target_cell_types <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Exc. GluN1"</span> <span class="ot">=</span> <span class="st">"GluN1"</span>, <span class="st">"Exc. GluN2"</span> <span class="ot">=</span> <span class="st">"GluN2"</span>, <span class="st">"Exc. GluN3"</span> <span class="ot">=</span> <span class="st">"GluN3"</span>, <span class="st">"Exc. GluN4"</span> <span class="ot">=</span> <span class="st">"GluN4"</span>, <span class="st">"Exc. GluN5"</span> <span class="ot">=</span> <span class="st">"GluN5"</span>, <span class="st">"Exc. GluN6"</span> <span class="ot">=</span> <span class="st">"GluN6"</span>, <span class="st">"Exc. GluN7"</span> <span class="ot">=</span> <span class="st">"GluN7"</span>, <span class="st">"Exc. GluN8"</span> <span class="ot">=</span> <span class="st">"GluN8"</span>, <span class="st">"CGE IN "</span> <span class="ot">=</span> <span class="st">"CGE IN"</span>, <span class="st">"MGE IN "</span> <span class="ot">=</span> <span class="st">"MGE IN"</span>, <span class="st">"Oligo"</span> <span class="ot">=</span> <span class="st">"OPC/Oligo"</span>, <span class="st">"MG"</span> <span class="ot">=</span> <span class="st">"MG"</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>rna <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(rna_rds_file)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">echo_vec</span>(<span class="fu">sort</span>(<span class="fu">unique</span>(rna[[]]<span class="sc">$</span>Name)))</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co"># dot plot</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">DotPlot</span>(rna, <span class="at">features =</span> target_gene_names, <span class="at">idents =</span> target_cell_types) <span class="sc">+</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">RotatedAxis</span>() <span class="sc">+</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_discrete</span>(</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>        <span class="at">limits =</span> <span class="fu">rev</span>(target_cell_types),</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        <span class="at">labels =</span> <span class="fu">rev</span>(<span class="fu">names</span>(target_cell_types))</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">text =</span> <span class="fu">element_text</span>(<span class="at">family =</span> <span class="st">"Arial"</span>))</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">ppreview</span>(p, <span class="at">file =</span> <span class="fu">file.path</span>(output_dir, <span class="st">"dotplot.pdf"</span>))</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="co"># violin plot</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>ident_colors <span class="ot">&lt;-</span> scales<span class="sc">::</span><span class="fu">hue_pal</span>()(<span class="fu">length</span>(target_cell_types))</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">VlnPlot</span>(rna, <span class="at">features =</span> target_gene_names, <span class="at">idents =</span> target_cell_types, <span class="at">pt.size =</span> <span class="dv">0</span>, <span class="at">cols =</span> ident_colors)</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p <span class="sc">+</span> <span class="fu">geom_jitter</span>(<span class="at">mapping =</span> <span class="fu">aes</span>(<span class="at">color =</span> ident), <span class="at">data =</span> p<span class="sc">$</span>data, <span class="at">size =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_discrete</span>(</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>        <span class="at">limits =</span> target_cell_types,</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>        <span class="at">labels =</span> <span class="fu">names</span>(target_cell_types)</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_continuous</span>(</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">expand =</span> <span class="fu">expansion</span>(<span class="dv">0</span>),</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>        <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">ceiling</span>(<span class="fu">max</span>(p<span class="sc">$</span>data[[target_gene_names]])))</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>, <span class="at">color =</span> <span class="st">"Cell Type"</span>) <span class="sc">+</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">guides</span>(<span class="at">fill =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">text =</span> <span class="fu">element_text</span>(<span class="at">family =</span> <span class="st">"Arial"</span>))</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="fu">ppreview</span>(p, <span class="at">file =</span> <span class="fu">file.path</span>(output_dir, <span class="st">"violinplot.pdf"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 
 

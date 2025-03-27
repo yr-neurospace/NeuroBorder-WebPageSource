@@ -114,3 +114,50 @@ for (file in files) {
     ppreview(p, file = file.path(output_dir, gsub("\\.(tsv|txt|csv)$", ".pdf", basename(file))))
 }
 ```
+
+## Visualize scRNA-Seq expression of a single gene using dot plot and violin plot of Seurat
+
+```{r}
+library(Seurat)
+library(tidyverse)
+library(YRUtils)
+
+rna_rds_file <- "/data/users/yangrui/sc_omics_ref_datasets/human/dataset_2/ana/res/rna_to_umap.rds"
+output_dir <- "/home/yangrui/temp"
+target_gene_names <- "BTN3A2"
+target_cell_types <- c("Exc. GluN1" = "GluN1", "Exc. GluN2" = "GluN2", "Exc. GluN3" = "GluN3", "Exc. GluN4" = "GluN4", "Exc. GluN5" = "GluN5", "Exc. GluN6" = "GluN6", "Exc. GluN7" = "GluN7", "Exc. GluN8" = "GluN8", "CGE IN " = "CGE IN", "MGE IN " = "MGE IN", "Oligo" = "OPC/Oligo", "MG" = "MG")
+
+rna <- readRDS(rna_rds_file)
+echo_vec(sort(unique(rna[[]]$Name)))
+
+# dot plot
+p <- DotPlot(rna, features = target_gene_names, idents = target_cell_types) +
+    RotatedAxis() +
+    scale_y_discrete(
+        limits = rev(target_cell_types),
+        labels = rev(names(target_cell_types))
+    ) +
+    labs(x = NULL, y = NULL) +
+    theme(text = element_text(family = "Arial"))
+
+ppreview(p, file = file.path(output_dir, "dotplot.pdf"))
+
+# violin plot
+ident_colors <- scales::hue_pal()(length(target_cell_types))
+
+p <- VlnPlot(rna, features = target_gene_names, idents = target_cell_types, pt.size = 0, cols = ident_colors)
+p <- p + geom_jitter(mapping = aes(color = ident), data = p$data, size = 1) +
+    scale_x_discrete(
+        limits = target_cell_types,
+        labels = names(target_cell_types)
+    ) +
+    scale_y_continuous(
+        expand = expansion(0),
+        limits = c(0, ceiling(max(p$data[[target_gene_names]])))
+    ) +
+    labs(x = NULL, y = NULL, color = "Cell Type") +
+    guides(fill = "none") +
+    theme(text = element_text(family = "Arial"))
+
+ppreview(p, file = file.path(output_dir, "violinplot.pdf"))
+```
