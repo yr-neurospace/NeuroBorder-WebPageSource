@@ -886,6 +886,97 @@ p <- Heatmap(
 ppreview(p, file = file.path(output_dir, "heatmap.pdf"))
 ```
 
+```{r}
+library(ComplexHeatmap)
+library(vroom)
+library(tidyverse)
+library(magrittr)
+library(circlize)
+library(YRUtils)
+
+quant_file <- "temp/data.tsv"
+output_dir <- "temp"
+
+quant_df <- vroom(quant_file) %>%
+    as.data.frame() %>%
+    set_rownames(.[["protein"]]) %>%
+    select(-protein)
+
+col_fun <- colorRamp2(c(floor(min(quant_df) * 10) / 10, 1.0, ceiling(max(quant_df) * 10) / 10), c("skyblue", "white", "orange"))
+column_order <- c(
+    "WT",
+    "P152A", "H70Q", "A200V", "Y48N", "A200T",
+    "D99G", "L04P", "N199I", "N199H", "L54P", "K217R", "R18K", "R198Q", "R213W",
+    "C203S", "C206F", "C206Y", "V63L", "L66H", "P201S", "K209N", "R112P", "Q82H"
+)
+column_order_df <- tibble(
+    cluster = c("WT", rep("NO", 5), rep("LOF", 9), rep("GOF", 9)),
+    protein = column_order
+) %>%
+    mutate(
+        cluster = factor(cluster, levels = c("WT", "NO", "LOF", "GOF")),
+        protein = factor(protein, levels = colnames(quant_df))
+    ) %>%
+    arrange(protein)
+row_order <- c("GluA1_rep1", "GluA1_rep2", "GluA1_rep3", "GluA2_rep1", "GluA2_rep2", "GluA2_rep3", "GABAARAlpha1_rep1", "GABAARAlpha1_rep2", "GABAARAlpha1_rep3", "GABAARBeta1_rep1", "GABAARBeta1_rep2", "GABAARBeta1_rep3")
+row_split <- gsub("_rep\\d+$", "", row.names(quant_df))
+row_split <- factor(row_split, levels = unique(row_split))
+left_anno <- rowAnnotation(
+    Sample = gsub("_rep\\d+$", "", row.names(quant_df)),
+    show_legend = FALSE,
+    show_annotation_name = FALSE,
+    simple_anno_size = unit(3, "mm"),
+    col = list(Sample = c("GluA1" = "#76EEC6", "GluA2" = "#EEAEEE", "GABAARAlpha1" = "#9F79EE", "GABAARBeta1" = "#EE799F"))
+)
+top_anno <- columnAnnotation(
+    Type = column_order_df$cluster,
+    show_legend = FALSE,
+    show_annotation_name = FALSE,
+    simple_anno_size = unit(3, "mm"),
+    col = list(Type = c("WT" = "#BEBEBE", "NO" = "#EED8AE", "LOF" = "#EE8262", "GOF" = "#BCD2EE"))
+)
+font_family <- "Arial"
+
+# `gpar()` is used to handle grid graphical parameters
+# for how to use `gpar()`, see `?gpar`
+# for ComplexHeatmap, you can set some parameters globally using `ht_opt`
+# e.g. `ht_opt$legend_title_gp <- gpar(fontfamily = "Times New Roman")`
+p <- Heatmap(
+    quant_df,
+    col = col_fun,
+    cluster_columns = FALSE,
+    cluster_column_slices = FALSE,
+    cluster_rows = FALSE,
+    cluster_row_slices = FALSE,
+    show_column_names = TRUE,
+    show_column_dend = FALSE,
+    show_row_names = FALSE,
+    show_row_dend = FALSE,
+    column_order = column_order,
+    column_split = column_order_df$cluster,
+    row_order = row_order,
+    row_split = row_split,
+    row_gap = unit(0.8, "mm"),
+    column_gap = unit(0.8, "mm"),
+    left_annotation = left_anno,
+    top_anno = top_anno,
+    height = nrow(quant_df) * unit(5, "mm"),
+    width = ncol(quant_df) * unit(5, "mm"),
+    column_title_rot = 90,
+    row_title_rot = 0,
+    heatmap_legend_param = list(
+        title = "normalized expression level",
+        title_gp = gpar(fontfamily = font_family),
+        labels_gp = gpar(fontfamily = font_family)
+    ),
+    row_names_gp = gpar(fontfamily = font_family),
+    column_names_gp = gpar(fontfamily = font_family),
+    row_title_gp = gpar(fontfamily = font_family),
+    column_title_gp = gpar(fontfamily = font_family)
+)
+ppreview(p, file = file.path(output_dir, "heatmap.pdf"))
+```
+
 ## Some examples about usages of UniProt and STRING APIs
 
 1. Retrieve subcellular locations and interactions from UniProt

@@ -105,6 +105,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../../../../styles.css">
 </head>
@@ -198,7 +227,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">March 27, 2025</p>
+        <p class="date-modified">March 30, 2025</p>
       </div>
     </div>
       
@@ -215,6 +244,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a></li>
   <li><a href="#plot-volcano-plot-in-batch" id="toc-plot-volcano-plot-in-batch" class="nav-link" data-scroll-target="#plot-volcano-plot-in-batch"><span class="header-section-number">2</span> Plot volcano plot in batch</a></li>
   <li><a href="#visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat" id="toc-visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat" class="nav-link" data-scroll-target="#visualize-scrna-seq-expression-of-a-single-gene-using-dot-plot-and-violin-plot-of-seurat"><span class="header-section-number">3</span> Visualize scRNA-Seq expression of a single gene using dot plot and violin plot of Seurat</a></li>
+  <li><a href="#latex-spaces" id="toc-latex-spaces" class="nav-link" data-scroll-target="#latex-spaces"><span class="header-section-number">4</span> LaTeX spaces</a></li>
+  <li><a href="#clusterprofiler-enrichment-results-interpretation" id="toc-clusterprofiler-enrichment-results-interpretation" class="nav-link" data-scroll-target="#clusterprofiler-enrichment-results-interpretation"><span class="header-section-number">5</span> clusterProfiler enrichment results interpretation</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/yr-neurospace/NeuroBorder/edit/main/Blogs/Bioinformatics/posts/Misc/misc_r_code/index.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/blob/main/Blogs/Bioinformatics/posts/Misc/misc_r_code/index.qmd" class="toc-action"><i class="bi empty"></i>View source</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
 </nav>
@@ -367,6 +398,74 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="fu">ppreview</span>(p, <span class="at">file =</span> <span class="fu">file.path</span>(output_dir, <span class="st">"violinplot.pdf"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="latex-spaces" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="latex-spaces"><span class="header-section-number">4</span> LaTeX spaces</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<tbody>
+<tr class="odd">
+<td>`a b`</td>
+<td><span class="math inline">\(a \qquad b\)</span></td>
+<td>Two <code>m</code> widths</td>
+</tr>
+<tr class="even">
+<td>`a b`</td>
+<td><span class="math inline">\(a \quad b\)</span></td>
+<td>One <code>m</code> width</td>
+</tr>
+<tr class="odd">
+<td><code>a \ b</code></td>
+<td><span class="math inline">\(a \ b\)</span></td>
+<td><span class="math inline">\(\frac{1}{3}\)</span> <code>m</code> widths</td>
+</tr>
+<tr class="even">
+<td><code>a \; b</code></td>
+<td><span class="math inline">\(a \; b\)</span></td>
+<td><span class="math inline">\(\frac{2}{7}\)</span> <code>m</code> widths</td>
+</tr>
+<tr class="odd">
+<td><code>a \, b</code></td>
+<td><span class="math inline">\(a \, b\)</span></td>
+<td><span class="math inline">\(\frac{1}{6}\)</span> <code>m</code> widths</td>
+</tr>
+<tr class="even">
+<td><code>ab</code></td>
+<td><span class="math inline">\(ab\)</span></td>
+<td>No space</td>
+</tr>
+<tr class="odd">
+<td><code>a \! b</code></td>
+<td><span class="math inline">\(a \! b\)</span></td>
+<td><span class="math inline">\(-\frac{1}{6}\)</span> <code>m</code> widths</td>
+</tr>
+<tr class="even">
+<td><code>\hspace{length}</code></td>
+<td><span class="math inline">\(a \hspace{1cm} b\)</span></td>
+<td>Horizontal space of specified length</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="clusterprofiler-enrichment-results-interpretation" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="clusterprofiler-enrichment-results-interpretation"><span class="header-section-number">5</span> clusterProfiler enrichment results interpretation</h2>
+<p><strong>超几何分布：</strong></p>
+<p>假定在 <span class="math inline">\(N\)</span> 件产品中有 <span class="math inline">\(M\)</span> 件不合理，即不合格率 <span class="math inline">\(p=\frac{M}{N}\)</span>。</p>
+<p>现在产品中随机抽取 <span class="math inline">\(n\)</span> 件做检查，发现 <span class="math inline">\(k\)</span> 件不合格品的概率为</p>
+<p><span class="math display">\[P(X=k)=\frac{C^k_M C^{n-k}_{N-M}}{C^n_N},\ k=t, t+1, ...,s,\ s=\min(M, n),\ t=n-(N-M) \ge 0\]</span></p>
+<p>在做 GO 富集时，记 <span class="math inline">\(N\)</span> 为背景基因集大小（例如可用样本中所有表达的基因或 GO 数据库中的所有基因作为背景基因集），<span class="math inline">\(m\)</span> 为某一通路下的基因数，<span class="math inline">\(n\)</span> 为输入做富集的基因数，<span class="math inline">\(k\)</span> 为属于该通路下的基因数，则依据超几何分布，我们可以计算如下指标：</p>
+<ul>
+<li><p><code>p.adjust</code>: adjusted p value (i.e.&nbsp;adjusted <span class="math inline">\(P(X=k)\)</span>).</p></li>
+<li><p><code>Count</code>: <span class="math inline">\(k\)</span>.</p></li>
+<li><p><code>Gene ratio</code>: <span class="math inline">\(\frac{k}{n}\)</span>.</p></li>
+<li><p><code>Background ratio</code>: <span class="math inline">\(\frac{m}{N}\)</span>.</p></li>
+<li><p><code>Rich factor</code>: <span class="math inline">\(\frac{k}{m}\)</span>.</p></li>
+<li><p><code>Fold enrichment</code>: <span class="math inline">\(\frac{\text{Gene ratio}}{\text{Background ratio}}\)</span>.</p></li>
+</ul>
 
 
 </section>

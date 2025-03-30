@@ -161,3 +161,40 @@ p <- p + geom_jitter(mapping = aes(color = ident), data = p$data, size = 1) +
 
 ppreview(p, file = file.path(output_dir, "violinplot.pdf"))
 ```
+
+## LaTeX spaces
+
+|                   |                    |                                      |
+|------------------------|------------------------|------------------------|
+| \`a \qquad b\`    | $a \qquad b$       | Two `m` widths                       |
+| \`a \quad b\`     | $a \quad b$        | One `m` width                        |
+| `a \ b`           | $a \ b$            | $\frac{1}{3}$ `m` widths             |
+| `a \; b`          | $a \; b$           | $\frac{2}{7}$ `m` widths             |
+| `a \, b`          | $a \, b$           | $\frac{1}{6}$ `m` widths             |
+| `ab`              | $ab$               | No space                             |
+| `a \! b`          | $a \! b$           | $-\frac{1}{6}$ `m` widths            |
+| `\hspace{length}` | $a \hspace{1cm} b$ | Horizontal space of specified length |
+
+## clusterProfiler enrichment results interpretation
+
+**超几何分布：**
+
+假定在 $N$ 件产品中有 $M$ 件不合理，即不合格率 $p=\frac{M}{N}$。
+
+现在产品中随机抽取 $n$ 件做检查，发现 $k$ 件不合格品的概率为
+
+$$P(X=k)=\frac{C^k_M C^{n-k}_{N-M}}{C^n_N},\ k=t, t+1, ...,s,\ s=\min(M, n),\ t=n-(N-M) \ge 0$$
+
+在做 GO 富集时，记 $N$ 为背景基因集大小（例如可用样本中所有表达的基因或 GO 数据库中的所有基因作为背景基因集），$m$ 为某一通路下的基因数，$n$ 为输入做富集的基因数，$k$ 为属于该通路下的基因数，则依据超几何分布，我们可以计算如下指标：
+
+-   `p.adjust`: adjusted p value (i.e. adjusted $P(X=k)$).
+
+-   `Count`: $k$.
+
+-   `Gene ratio`: $\frac{k}{n}$.
+
+-   `Background ratio`: $\frac{m}{N}$.
+
+-   `Rich factor`: $\frac{k}{m}$.
+
+-   `Fold enrichment`: $\frac{\text{Gene ratio}}{\text{Background ratio}}$.
