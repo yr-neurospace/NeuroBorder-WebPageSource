@@ -1,0 +1,147 @@
+---
+title: "Retrieve high-confidence NDD genes"
+author: "Rui Yang"
+date: "2025-04-15"
+date-modified: last-modified
+categories: [NDD, gene]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+Retrieve high-confidence NDD genes from various databases.
+
+## Geisinger DBD Genes Database
+
+Go to [Geisinger DBD Genes Database](https://dbd.geisingeradmi.org/).
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+work_dir <- "/home/yangrui/data"
+file <- "Geisinger_DBD_Genes_Database.Full_LoF_Table_Data.csv"
+
+setwd(work_dir)
+# keep high confidence candidate genes:
+# 1: genes with three or more de novo pathogenic loss-of-function variants
+# AR: genes with autosomal inheiritance
+df <- vroom(file) %>%
+    filter(Tier %in% c("1", "AR")) %>%
+    arrange(Tier) %>%
+    distinct()
+vroom_write(df, file = "Geisinger_DBD_Genes_Database.Full_LoF_Table_Data.high_confidence.tsv")
+```
+
+## SysNDD
+
+Go to [SysNDD](https://sysndd.dbmr.unibe.ch/).
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+work_dir <- "/home/yangrui/data"
+file <- "SysNDD.sysndd_gene_table.txt"
+
+setwd(work_dir)
+# keep high confidence candidate genes: Definitive
+df <- vroom(file) %>%
+    filter(entities_category %in% c("Definitive")) %>%
+    arrange(entities_category) %>%
+    distinct()
+vroom_write(df, file = "SysNDD.sysndd_gene_table.high_confidence.tsv")
+```
+
+## SFARI GENE
+
+Go to [SFARI GENE](https://gene.sfari.org/).
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+work_dir <- "/home/yangrui/data"
+file <- "ASD.SFARI_Gene.genes_04-03-2025release_04-15-2025export.csv"
+
+setwd(work_dir)
+# keep high confidence candidate genes: 1
+df <- vroom(file) %>%
+    filter(`gene-score` %in% c(1)) %>%
+    arrange(`gene-score`) %>%
+    distinct()
+vroom_write(df, file = "ASD.SFARI_Gene.genes_04-03-2025release_04-15-2025export.high_confidence.tsv")
+```
+
+## Gene2Phenotype
+
+Go to [Gene2Phenotype](https://www.ebi.ac.uk/gene2phenotype/).
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+work_dir <- "/home/yangrui/data"
+file <- "DD.Gene2Phenotype.G2P_DD_2025-04-15.csv"
+
+setwd(work_dir)
+# keep high confidence candidate genes: definitive
+df <- vroom(file) %>%
+    filter(confidence %in% c("definitive")) %>%
+    arrange(confidence) %>%
+    distinct()
+vroom_write(df, file = "DD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.tsv")
+
+# whether a disease is NDD is recognized by AI
+high_confidence_file <- "DD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.tsv"
+ndd_label_file <- "DD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.with_NDD_flag.tsv"
+
+high_confidence_df <- vroom(high_confidence_file)
+ndd_label_df <- vroom(ndd_label_file)
+df <- inner_join(high_confidence_df, ndd_label_df, by = c("disease name" = "disease_name")) %>%
+    filter(is_ndd == "Yes") %>%
+    distinct()
+vroom_write(df, file = "NDD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.tsv")
+```
+
+## GeneTrek
+
+Go to [GeneTrek](https://genetrek.pasteur.fr/).
+
+```{r}
+library(vroom)
+library(tidyverse)
+
+work_dir <- "/home/yangrui/data"
+file <- "NDD.GeneTrek.genetrek_data_2024-04-26.tsv"
+
+setwd(work_dir)
+# keep high confidence candidate genes:
+# High Confidence Epilepsy Genes
+# or
+# High Confidence NDD genes v3
+df <- vroom(file) %>%
+    filter((`High Confidence Epilepsy Genes` | `High Confidence NDD genes v3`) & (`Gene type` == "protein-coding")) %>%
+    distinct()
+vroom_write(df, file = "NDD.GeneTrek.genetrek_data_2024-04-26.high_confidence.tsv")
+```
+
+## SPARK
+
+Go to [SPARK](https://sparkforautism.org/portal/page/spark-gene-list/).

@@ -469,6 +469,93 @@
     "text": "5 clusterProfiler enrichment results interpretation\n超几何分布：\n假定在 \\(N\\) 件产品中有 \\(M\\) 件不合理，即不合格率 \\(p=\\frac{M}{N}\\)。\n现在产品中随机抽取 \\(n\\) 件做检查，发现 \\(k\\) 件不合格品的概率为\n\\[P(X=k)=\\frac{C^k_M C^{n-k}_{N-M}}{C^n_N},\\ k=t, t+1, ...,s,\\ s=\\min(M, n),\\ t=n-(N-M) \\ge 0\\]\n在做 GO 富集时，记 \\(N\\) 为背景基因集大小（例如可用样本中所有表达的基因或 GO 数据库中的所有基因作为背景基因集），\\(m\\) 为某一通路下的基因数，\\(n\\) 为输入做富集的基因数，\\(k\\) 为属于该通路下的基因数，则依据超几何分布，我们可以计算如下指标：\n\np.adjust: adjusted p value (i.e. adjusted \\(P(X=k)\\)).\nCount: \\(k\\).\nGene ratio: \\(\\frac{k}{n}\\).\nBackground ratio: \\(\\frac{m}{N}\\).\nRich factor: \\(\\frac{k}{m}\\).\nFold enrichment: \\(\\frac{\\text{Gene ratio}}{\\text{Background ratio}}\\)."
   },
   {
+    "objectID": "Blogs/Bioinformatics/posts/Misc/misc_r_code/index.html#sort-go-terms-of-two-clusters-based-on-richfactor-and-p.adjust-and-visualize-them-using-dot-plot",
+    "href": "Blogs/Bioinformatics/posts/Misc/misc_r_code/index.html#sort-go-terms-of-two-clusters-based-on-richfactor-and-p.adjust-and-visualize-them-using-dot-plot",
+    "title": "Misc R code",
+    "section": "6 Sort GO terms of two clusters based on RichFactor and p.adjust and visualize them using dot plot",
+    "text": "6 Sort GO terms of two clusters based on RichFactor and p.adjust and visualize them using dot plot\n\nlibrary(tidyverse)\nlibrary(vroom)\nlibrary(YRUtils)\n\ngo_file &lt;- \"go_bp.tsv\"\ncluster_levels &lt;- c(\"P2-Sul Up\", \"P10-Sul Up\")\noutput_dir &lt;- \"~/temp\"\n\ngo_df &lt;- vroom(go_file) %&gt;%\n    mutate(Cluster = factor(Cluster, levels = cluster_levels))\n\n# classify terms into five categories based on RichFactor\nsample_flag_levels &lt;- c(paste0(cluster_levels[1], c(\"@Specific\", \"@Up\")), paste0(paste0(cluster_levels, collapse = \"_vs_\"), \"@Equal\"), paste0(cluster_levels[2], c(\"@Up\", \"@Specific\")))\nsample_flag_df &lt;- go_df %&gt;%\n    pivot_wider(id_cols = \"ID\", names_from = \"Cluster\", values_from = \"RichFactor\") %&gt;%\n    mutate(\n        SampleFlag = if_else(is.na(.[[cluster_levels[1]]]), paste0(cluster_levels[2], \"@Specific\"), if_else(is.na(.[[cluster_levels[2]]]), paste0(cluster_levels[1], \"@Specific\"), if_else(.[[cluster_levels[1]]] &gt; .[[cluster_levels[2]]], paste0(cluster_levels[1], \"@Up\"), if_else(.[[cluster_levels[1]]] &lt; .[[cluster_levels[2]]], paste0(cluster_levels[2], \"@Up\"), paste0(cluster_levels[1], \"_vs_\", cluster_levels[2], \"@Equal\"))))),\n        SampleFlag = factor(SampleFlag, levels = sample_flag_levels)\n    ) %&gt;%\n    pivot_longer(cols = !all_of(c(\"ID\", \"SampleFlag\")), names_to = \"Cluster\", values_to = \"RichFactor\") %&gt;%\n    na.omit() %&gt;%\n    distinct()\n# sort terms based on RichFactor and p.adjust\ndf &lt;- inner_join(sample_flag_df, distinct(select(go_df, Cluster, ID, p.adjust)), by = c(\"Cluster\", \"ID\")) %&gt;%\n    arrange(\n        SampleFlag,\n        case_when(\n            Cluster == cluster_levels[1] ~ -RichFactor,\n            Cluster == cluster_levels[2] ~ RichFactor,\n            TRUE ~ RichFactor\n        ),\n        case_when(\n            Cluster == cluster_levels[1] ~ -p.adjust,\n            Cluster == cluster_levels[2] ~ p.adjust,\n            TRUE ~ p.adjust\n        )\n    )\n\ngo_df &lt;- go_df %&gt;%\n    mutate(ID = factor(ID, levels = unique(df[[\"ID\"]]))) %&gt;%\n    arrange(ID) %&gt;%\n    mutate(Description = factor(Description, levels = rev(unique(Description))))\n\np &lt;- ggplot(go_df, aes(Cluster, Description, size = RichFactor, color = p.adjust)) +\n    geom_point() +\n    scale_color_gradient(low = \"#e06663\", high = \"#327eba\") +\n    scale_y_discrete(position = \"right\") +\n    guides(x = guide_axis(angle = 90)) +\n    labs(x = NULL, y = NULL) +\n    theme_bw(base_size = 18, base_family = \"Arial\")\nppreview(p, file = file.path(output_dir, \"temp.pdf\"))"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Misc/misc_r_code/index.html#retrieve-uniprot-entries-using-rest-api-in-batch",
+    "href": "Blogs/Bioinformatics/posts/Misc/misc_r_code/index.html#retrieve-uniprot-entries-using-rest-api-in-batch",
+    "title": "Misc R code",
+    "section": "7 Retrieve UniProt entries using REST API in batch",
+    "text": "7 Retrieve UniProt entries using REST API in batch\n\nlibrary(vroom)\nlibrary(tidyverse)\nlibrary(glue)\nlibrary(rvest)\n\n# no more than 25\nmax_length &lt;- 20\norganism_id &lt;- 9606\nurl_template &lt;- \"https://rest.uniprot.org/uniprotkb/search?query=({accession_str})%20AND%20(active:true)%20AND%20(organism_id:{organism_id})&fields=accession,gene_primary,organism_name,organism_id,protein_name,annotation_score,protein_existence,reviewed,ft_intramem,cc_subcellular_location,ft_topo_dom,ft_transmem,go,go_p,go_c,go_f,cc_interaction&format=tsv\"\nfile &lt;- \"test.tsv\"\n\naccessions &lt;- vroom(file) %&gt;%\n    pull(Entry) %&gt;%\n    na.omit() %&gt;%\n    unique()\n\naccession_ls &lt;- split(accessions, ceiling(seq_along(accessions) / max_length))\ndf &lt;- tibble()\nfor (accession_vec in accession_ls) {\n    accession_str &lt;- paste0(paste0(\"accession:\", accession_vec), collapse = \"%20OR%20\")\n    url_instance &lt;- glue(url_template)\n\n    e &lt;- try(item_raw_text &lt;- read_html(url_instance) %&gt;% html_text(), silent = T)\n    if (\"try-error\" %in% class(e)) {\n        message(\"invalid accession string: \", accession_str)\n    } else {\n        item_df &lt;- vroom(I(item_raw_text), delim = \"\\t\") %&gt;%\n            mutate(\n                `Organism (ID)` = as.integer(`Organism (ID)`),\n                Annotation = as.integer(Annotation)\n            )\n        df &lt;- bind_rows(df, item_df)\n    }\n}\ndf &lt;- distinct(df)"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "",
+    "text": "Retrieve high-confidence NDD genes from various databases."
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#introduction",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#introduction",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "",
+    "text": "Retrieve high-confidence NDD genes from various databases."
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#geisinger-dbd-genes-database",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#geisinger-dbd-genes-database",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "2 Geisinger DBD Genes Database",
+    "text": "2 Geisinger DBD Genes Database\nGo to Geisinger DBD Genes Database.\n\nlibrary(vroom)\nlibrary(tidyverse)\n\nwork_dir &lt;- \"/home/yangrui/data\"\nfile &lt;- \"Geisinger_DBD_Genes_Database.Full_LoF_Table_Data.csv\"\n\nsetwd(work_dir)\n# keep high confidence candidate genes:\n# 1: genes with three or more de novo pathogenic loss-of-function variants\n# AR: genes with autosomal inheiritance\ndf &lt;- vroom(file) %&gt;%\n    filter(Tier %in% c(\"1\", \"AR\")) %&gt;%\n    arrange(Tier) %&gt;%\n    distinct()\nvroom_write(df, file = \"Geisinger_DBD_Genes_Database.Full_LoF_Table_Data.high_confidence.tsv\")"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#sysndd",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#sysndd",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "3 SysNDD",
+    "text": "3 SysNDD\nGo to SysNDD.\n\nlibrary(vroom)\nlibrary(tidyverse)\n\nwork_dir &lt;- \"/home/yangrui/data\"\nfile &lt;- \"SysNDD.sysndd_gene_table.txt\"\n\nsetwd(work_dir)\n# keep high confidence candidate genes: Definitive\ndf &lt;- vroom(file) %&gt;%\n    filter(entities_category %in% c(\"Definitive\")) %&gt;%\n    arrange(entities_category) %&gt;%\n    distinct()\nvroom_write(df, file = \"SysNDD.sysndd_gene_table.high_confidence.tsv\")"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#sfari-gene",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#sfari-gene",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "4 SFARI GENE",
+    "text": "4 SFARI GENE\nGo to SFARI GENE.\n\nlibrary(vroom)\nlibrary(tidyverse)\n\nwork_dir &lt;- \"/home/yangrui/data\"\nfile &lt;- \"ASD.SFARI_Gene.genes_04-03-2025release_04-15-2025export.csv\"\n\nsetwd(work_dir)\n# keep high confidence candidate genes: 1\ndf &lt;- vroom(file) %&gt;%\n    filter(`gene-score` %in% c(1)) %&gt;%\n    arrange(`gene-score`) %&gt;%\n    distinct()\nvroom_write(df, file = \"ASD.SFARI_Gene.genes_04-03-2025release_04-15-2025export.high_confidence.tsv\")"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#gene2phenotype",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#gene2phenotype",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "5 Gene2Phenotype",
+    "text": "5 Gene2Phenotype\nGo to Gene2Phenotype.\n\nlibrary(vroom)\nlibrary(tidyverse)\n\nwork_dir &lt;- \"/home/yangrui/data\"\nfile &lt;- \"DD.Gene2Phenotype.G2P_DD_2025-04-15.csv\"\n\nsetwd(work_dir)\n# keep high confidence candidate genes: definitive\ndf &lt;- vroom(file) %&gt;%\n    filter(confidence %in% c(\"definitive\")) %&gt;%\n    arrange(confidence) %&gt;%\n    distinct()\nvroom_write(df, file = \"DD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.tsv\")\n\n# whether a disease is NDD is recognized by AI\nhigh_confidence_file &lt;- \"DD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.tsv\"\nndd_label_file &lt;- \"DD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.with_NDD_flag.tsv\"\n\nhigh_confidence_df &lt;- vroom(high_confidence_file)\nndd_label_df &lt;- vroom(ndd_label_file)\ndf &lt;- inner_join(high_confidence_df, ndd_label_df, by = c(\"disease name\" = \"disease_name\")) %&gt;%\n    filter(is_ndd == \"Yes\") %&gt;%\n    distinct()\nvroom_write(df, file = \"NDD.Gene2Phenotype.G2P_DD_2025-04-15.high_confidence.tsv\")"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#genetrek",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#genetrek",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "6 GeneTrek",
+    "text": "6 GeneTrek\nGo to GeneTrek.\n\nlibrary(vroom)\nlibrary(tidyverse)\n\nwork_dir &lt;- \"/home/yangrui/data\"\nfile &lt;- \"NDD.GeneTrek.genetrek_data_2024-04-26.tsv\"\n\nsetwd(work_dir)\n# keep high confidence candidate genes:\n# High Confidence Epilepsy Genes\n# or\n# High Confidence NDD genes v3\ndf &lt;- vroom(file) %&gt;%\n    filter((`High Confidence Epilepsy Genes` | `High Confidence NDD genes v3`) & (`Gene type` == \"protein-coding\")) %&gt;%\n    distinct()\nvroom_write(df, file = \"NDD.GeneTrek.genetrek_data_2024-04-26.high_confidence.tsv\")"
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#spark",
+    "href": "Blogs/Bioinformatics/posts/Database/retrieve_high_confidence_ndd_genes/index.html#spark",
+    "title": "Retrieve high-confidence NDD genes",
+    "section": "7 SPARK",
+    "text": "7 SPARK\nGo to SPARK."
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/index.html",
+    "href": "Blogs/Bioinformatics/index.html",
+    "title": "Bioinformatics",
+    "section": "",
+    "text": "Order By\n       Default\n         \n          Title\n        \n         \n          Date - Oldest\n        \n         \n          Date - Newest\n        \n     \n  \n    \n      \n      \n    \n\n\n\n\n\n\n\n\n\n\nRetrieve high-confidence NDD genes\n\n\n\n\n\n\nNDD\n\n\ngene\n\n\n\n\n\n\n\n\n\nApr 15, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBulk RNA-Seq differential expression analysis and batch correction with DESeq2, limma, or sva\n\n\n\n\n\n\nbulk rna-seq\n\n\ndifferential expression\n\n\nbatch correction\n\n\ndeseq2\n\n\nlimma\n\n\nsva\n\n\n\n\n\n\n\n\n\nMar 2, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBuild ENCODE ATAC/ChIP-Seq pipeline indices\n\n\n\n\n\n\nencode\n\n\natac-seq\n\n\nchip-seq\n\n\nindex\n\n\n\n\n\n\n\n\n\nFeb 28, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBuild ENCODE RNA-Seq pipeline indices\n\n\n\n\n\n\nencode\n\n\nrna-seq\n\n\nindex\n\n\n\n\n\n\n\n\n\nFeb 26, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nDE-related analysis for bulk proteomics\n\n\n\n\n\n\nbulk proteomics\n\n\ndifferential expression\n\n\n\n\n\n\n\n\n\nJan 16, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nMPRA analysis pipeline\n\n\n\n\n\n\nmpra\n\n\n\n\n\n\n\n\n\nJan 8, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nMisc R code\n\n\n\n\n\n\nr\n\n\nmisc\n\n\n\n\n\n\n\n\n\nJan 2, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nCut&Tag analysis pipeline\n\n\n\n\n\n\ncut&tag\n\n\n\n\n\n\n\n\n\nDec 30, 2024\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nAgilent mRNA microarray analysis using limma\n\n\n\n\n\n\nagilent\n\n\nmrna\n\n\nmicroarray\n\n\nlimma\n\n\n\n\n\n\n\n\n\nSep 30, 2024\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nIdentify housekeeping genes\n\n\n\n\n\n\nbulk rna-seq\n\n\nhousekeeping genes\n\n\n\n\n\n\n\n\n\nSep 18, 2024\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBulk RNA-seq pseudotime analysis\n\n\n\n\n\n\nbulk rna-seq\n\n\npseudotime\n\n\n\n\n\n\n\n\n\nSep 9, 2024\n\n\nRui Yang\n\n\n\n\n\n\nNo matching items",
+    "crumbs": [
+      "Bioinformatics"
+    ]
+  },
+  {
+    "objectID": "Blogs/Bioinformatics/about.html",
+    "href": "Blogs/Bioinformatics/about.html",
+    "title": "NeuroBorder",
+    "section": "",
+    "text": "Here is a collection of blogs related to bioinfomatics, such as bulk RNA-seq, scRNA-seq, etc.\nEmail: 2413667864@qq.com"
+  },
+  {
     "objectID": "Blogs/Bioinformatics/posts/Cut&Tag/cuttag_analysis_pipeline/index.html",
     "href": "Blogs/Bioinformatics/posts/Cut&Tag/cuttag_analysis_pipeline/index.html",
     "title": "Cut&Tag analysis pipeline",
@@ -635,23 +722,6 @@
     "title": "Cut&Tag analysis pipeline",
     "section": "23 Peak annotation",
     "text": "23 Peak annotation\n\n23.1 Make TxDb object from GFF3/GTF file\nlibrary(txdbmaker)\nlibrary(vroom)\nlibrary(tidyverse)\nlibrary(GenomeInfoDb)\n\nanno_file &lt;- \"/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.gtf.gz\"\nchrsz_file &lt;- \"/data/biodatabase/species/mm10/genome/genome/mm10_no_alt.chrom.sizes.tsv\"\nanno_format &lt;- \"gtf\"\norganism &lt;- \"Mus musculus\"\n# Sugar glider (Petaurus breviceps): 34899\n# Mouse (Mus musculus): 10090\ntaxonomy_id &lt;- 10090\ngenome &lt;- \"mm10\"\ncircular_chrs &lt;- c(\"chrM\")\n\nchrsz &lt;- vroom(chrsz_file, col_names = FALSE)\nseqinfo &lt;- Seqinfo(\n    seqnames = chrsz$X1,\n    seqlengths = chrsz$X2,\n    isCircular = if_else(chrsz$X1 %in% circular_chrs, TRUE, FALSE),\n    genome = genome\n)\ntxdb &lt;- makeTxDbFromGFF(\n    file = anno_file,\n    format = anno_format,\n    organism = organism,\n    taxonomyId = taxonomy_id,\n    chrominfo = seqinfo\n)\n# loadDB()\nsaveDb(txdb, file = gsub(\"\\\\.\\\\w+(\\\\.gz)*$\", \".TxDb.sqlite\", anno_file))\n\n\n23.2 Profile of peaks binding to TSS/body/TTS regions\nlibrary(ChIPseeker)\nlibrary(YRUtils)\nlibrary(AnnotationDbi)\nlibrary(ggprism)\nlibrary(ggplot2)\n\npeak_file &lt;- \"/data/users/yangrui/mouse/cuttag_v20250108/final_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.bed\"\ntxdb_file &lt;- \"/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.TxDb.sqlite\"\npeak_anno_dir &lt;- \"final_peak/peak_anno/narrow_peak\"\nupstream_dist &lt;- 2000\ndownstream_dist &lt;- 2000\nby_what &lt;- \"gene\"\ntypes &lt;- c(\"start_site\", \"body\", \"end_site\")\nnbin &lt;- 400\n\npeak &lt;- readPeakFile(peak_file)\ntxdb &lt;- loadDb(txdb_file)\nfor (type in types) {\n    profile_p &lt;- plotPeakProf2(\n        peak = peak,\n        upstream = upstream_dist,\n        downstream = downstream_dist,\n        by = by_what,\n        type = type,\n        nbin = if (type == \"body\") nbin else NULL,\n        TxDb = txdb\n    ) + theme_prism(\n        base_size = 14,\n        base_family = \"Arial\",\n        border = TRUE\n    )\n\n    profile_p_file &lt;- file.path(\n        peak_anno_dir,\n        gsub(\n            \"\\\\.[a-zA-Z0-9]+$\",\n            paste0(\".\", by_what, \".\", type, \".profile.pdf\"),\n            basename(peak_file)\n        )\n    )\n    ppreview(profile_p, file = profile_p_file)\n\n    heatmap_p &lt;- peakHeatmap(\n        peak = peak,\n        upstream = upstream_dist,\n        downstream = downstream_dist,\n        by = by_what,\n        type = type,\n        nbin = if (type == \"body\") nbin else NULL,\n        TxDb = txdb\n    ) + theme(\n        text = element_text(family = \"Arial\", size = 14)\n    )\n\n    heatmap_p_file &lt;- file.path(\n        peak_anno_dir,\n        gsub(\n            \"\\\\.[a-zA-Z0-9]+$\",\n            paste0(\".\", by_what, \".\", type, \".heatmap.pdf\"),\n            basename(peak_file)\n        )\n    )\n    ppreview(heatmap_p, file = heatmap_p_file)\n}\n\n\n23.3 Peak annotation\nlibrary(ChIPseeker)\nlibrary(YRUtils)\nlibrary(AnnotationDbi)\nlibrary(ggplot2)\nlibrary(ggprism)\nlibrary(vroom)\n\npeak_file &lt;- \"/data/users/yangrui/mouse/cuttag_v20250108/final_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.bed\"\ntxdb_file &lt;- \"/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.TxDb.sqlite\"\npeak_anno_dir &lt;- \"final_peak/peak_anno/narrow_peak\"\ntss_region &lt;- c(-2000, 2000)\nby_what &lt;- \"transcript\"\n\npeak &lt;- readPeakFile(peak_file)\ntxdb &lt;- loadDb(txdb_file)\npeak_anno &lt;- annotatePeak(\n    peak = peak,\n    tssRegion = tss_region,\n    TxDb = txdb,\n    level = by_what\n)\n\npeak_anno_file &lt;- file.path(\n    peak_anno_dir,\n    gsub(\n        \"\\\\.[a-zA-Z0-9]+$\",\n        paste0(\".\", by_what, \".anno.tsv\"),\n        basename(peak_file)\n    )\n)\nvroom_write(as.data.frame(peak_anno),\n    file = peak_anno_file,\n    col_names = TRUE, append = FALSE\n)\n\npeak_anno_stat_df &lt;- getAnnoStat(peak_anno)\n\npie_p &lt;- ggplot(peak_anno_stat_df, aes(x = \"\", y = Frequency, fill = Feature)) +\n    geom_col() +\n    coord_polar(theta = \"y\") +\n    theme_void(base_size = 20, base_family = \"Arial\")\n\npie_p_file &lt;- file.path(\n    peak_anno_dir,\n    gsub(\n        \"\\\\.[a-zA-Z0-9]+$\",\n        paste0(\".\", by_what, \".anno_pie.pdf\"),\n        basename(peak_file)\n    )\n)\nppreview(pie_p, file = pie_p_file)\n\ntss_distribution_p &lt;- plotDistToTSS(peak_anno) +\n    labs(title = NULL) +\n    theme_prism(border = TRUE, base_size = 20, base_family = \"Arial\") +\n    theme(legend.title = element_text())\n\ntss_distribution_p_file &lt;- file.path(\n    peak_anno_dir,\n    gsub(\n        \"\\\\.[a-zA-Z0-9]+$\",\n        paste0(\".\", by_what, \".anno_tss_distribution.pdf\"),\n        basename(peak_file)\n    )\n)\nppreview(tss_distribution_p, file = tss_distribution_p_file)\n\n\n23.4 Functional enrichment analysis\nlibrary(vroom)\nlibrary(magrittr)\nlibrary(clusterProfiler)\nlibrary(AnnotationDbi)\nlibrary(tidyverse)\n\npeak_anno_file &lt;- \"/data/users/yangrui/mouse/cuttag_v20250108/final_peak/peak_anno/narrow_peak/Satb2.without_ctl.pval0.01.idr0.05.narrowPeak.merged.transcript.anno.tsv\"\nmpt_file &lt;- \"/data/biodatabase/species/mm10/genome/anno/gencode.vM21.trna.ercc.phix.gtf.gz.gene_id_name_mapping_table.tsv\"\norgdb_file &lt;- \"/data/biodatabase/species/mm10/genome/anno/org.Mm.eg.db.sqlite\"\n\nmpt_df &lt;- vroom(mpt_file) %&gt;%\n    select(gene_id, gene_name) %&gt;%\n    distinct()\npeak_anno_df &lt;- vroom(peak_anno_file) %&gt;%\n    inner_join(mpt_df, by = c(\"geneId\" = \"gene_id\")) %&gt;%\n    select(seqnames, start, end, V4, V5, V6, gene_name, distanceToTSS) %&gt;%\n    set_colnames(c(\"seqname\", \"start\", \"end\", \"name\", \"score\", \"strand\", \"gene_name\", \"dist_to_tss\")) %&gt;%\n    distinct()\nvroom_write(peak_anno_df,\n    file = gsub(\"\\\\.tsv$\", \"\\\\.with_names.tsv\", peak_anno_file),\n    col_names = TRUE, append = FALSE\n)\n\norgdb &lt;- loadDb(orgdb_file)\nego &lt;- enrichGO(\n    unique(na.omit(peak_anno_df[[\"gene_name\"]])),\n    OrgDb = orgdb,\n    keyType = \"SYMBOL\",\n    ont = \"ALL\",\n    pvalueCutoff = 0.05,\n    qvalueCutoff = 0.05,\n    pAdjustMethod = \"BH\",\n    minGSSize = 10,\n    maxGSSize = 1000,\n    readable = FALSE,\n    pool = FALSE\n)\nego\nnrow(ego@result)\nsaveRDS(ego, file = gsub(\"\\\\.tsv$\", \"\\\\.GO_ALL.rds\", peak_anno_file))\nvroom_write(ego@result,\n    file = gsub(\"\\\\.tsv$\", \"\\\\.GO_ALL.tsv\", peak_anno_file),\n    col_names = TRUE, append = FALSE\n)"
-  },
-  {
-    "objectID": "Blogs/Bioinformatics/about.html",
-    "href": "Blogs/Bioinformatics/about.html",
-    "title": "NeuroBorder",
-    "section": "",
-    "text": "Here is a collection of blogs related to bioinfomatics, such as bulk RNA-seq, scRNA-seq, etc.\nEmail: 2413667864@qq.com"
-  },
-  {
-    "objectID": "Blogs/Bioinformatics/index.html",
-    "href": "Blogs/Bioinformatics/index.html",
-    "title": "Bioinformatics",
-    "section": "",
-    "text": "Order By\n       Default\n         \n          Title\n        \n         \n          Date - Oldest\n        \n         \n          Date - Newest\n        \n     \n  \n    \n      \n      \n    \n\n\n\n\n\n\n\n\n\n\nBulk RNA-Seq differential expression analysis and batch correction with DESeq2, limma, or sva\n\n\n\n\n\n\nbulk rna-seq\n\n\ndifferential expression\n\n\nbatch correction\n\n\ndeseq2\n\n\nlimma\n\n\nsva\n\n\n\n\n\n\n\n\n\nMar 2, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBuild ENCODE ATAC/ChIP-Seq pipeline indices\n\n\n\n\n\n\nencode\n\n\natac-seq\n\n\nchip-seq\n\n\nindex\n\n\n\n\n\n\n\n\n\nFeb 28, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBuild ENCODE RNA-Seq pipeline indices\n\n\n\n\n\n\nencode\n\n\nrna-seq\n\n\nindex\n\n\n\n\n\n\n\n\n\nFeb 26, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nDE-related analysis for bulk proteomics\n\n\n\n\n\n\nbulk proteomics\n\n\ndifferential expression\n\n\n\n\n\n\n\n\n\nJan 16, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nMPRA analysis pipeline\n\n\n\n\n\n\nmpra\n\n\n\n\n\n\n\n\n\nJan 8, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nMisc R code\n\n\n\n\n\n\nr\n\n\nmisc\n\n\n\n\n\n\n\n\n\nJan 2, 2025\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nCut&Tag analysis pipeline\n\n\n\n\n\n\ncut&tag\n\n\n\n\n\n\n\n\n\nDec 30, 2024\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nAgilent mRNA microarray analysis using limma\n\n\n\n\n\n\nagilent\n\n\nmrna\n\n\nmicroarray\n\n\nlimma\n\n\n\n\n\n\n\n\n\nSep 30, 2024\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nIdentify housekeeping genes\n\n\n\n\n\n\nbulk rna-seq\n\n\nhousekeeping genes\n\n\n\n\n\n\n\n\n\nSep 18, 2024\n\n\nRui Yang\n\n\n\n\n\n\n\n\n\n\n\n\nBulk RNA-seq pseudotime analysis\n\n\n\n\n\n\nbulk rna-seq\n\n\npseudotime\n\n\n\n\n\n\n\n\n\nSep 9, 2024\n\n\nRui Yang\n\n\n\n\n\n\nNo matching items",
-    "crumbs": [
-      "Bioinformatics"
-    ]
   },
   {
     "objectID": "Blogs/Bioinformatics/posts/MPRA/mpra_analysis_pipeline/index.html",

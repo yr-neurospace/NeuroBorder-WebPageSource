@@ -198,3 +198,99 @@ $$P(X=k)=\frac{C^k_M C^{n-k}_{N-M}}{C^n_N},\ k=t, t+1, ...,s,\ s=\min(M, n),\ t=
 -   `Rich factor`: $\frac{k}{m}$.
 
 -   `Fold enrichment`: $\frac{\text{Gene ratio}}{\text{Background ratio}}$.
+
+## Sort GO terms of two clusters based on `RichFactor` and `p.adjust` and visualize them using dot plot
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(YRUtils)
+
+go_file <- "go_bp.tsv"
+cluster_levels <- c("P2-Sul Up", "P10-Sul Up")
+output_dir <- "~/temp"
+
+go_df <- vroom(go_file) %>%
+    mutate(Cluster = factor(Cluster, levels = cluster_levels))
+
+# classify terms into five categories based on RichFactor
+sample_flag_levels <- c(paste0(cluster_levels[1], c("@Specific", "@Up")), paste0(paste0(cluster_levels, collapse = "_vs_"), "@Equal"), paste0(cluster_levels[2], c("@Up", "@Specific")))
+sample_flag_df <- go_df %>%
+    pivot_wider(id_cols = "ID", names_from = "Cluster", values_from = "RichFactor") %>%
+    mutate(
+        SampleFlag = if_else(is.na(.[[cluster_levels[1]]]), paste0(cluster_levels[2], "@Specific"), if_else(is.na(.[[cluster_levels[2]]]), paste0(cluster_levels[1], "@Specific"), if_else(.[[cluster_levels[1]]] > .[[cluster_levels[2]]], paste0(cluster_levels[1], "@Up"), if_else(.[[cluster_levels[1]]] < .[[cluster_levels[2]]], paste0(cluster_levels[2], "@Up"), paste0(cluster_levels[1], "_vs_", cluster_levels[2], "@Equal"))))),
+        SampleFlag = factor(SampleFlag, levels = sample_flag_levels)
+    ) %>%
+    pivot_longer(cols = !all_of(c("ID", "SampleFlag")), names_to = "Cluster", values_to = "RichFactor") %>%
+    na.omit() %>%
+    distinct()
+# sort terms based on RichFactor and p.adjust
+df <- inner_join(sample_flag_df, distinct(select(go_df, Cluster, ID, p.adjust)), by = c("Cluster", "ID")) %>%
+    arrange(
+        SampleFlag,
+        case_when(
+            Cluster == cluster_levels[1] ~ -RichFactor,
+            Cluster == cluster_levels[2] ~ RichFactor,
+            TRUE ~ RichFactor
+        ),
+        case_when(
+            Cluster == cluster_levels[1] ~ -p.adjust,
+            Cluster == cluster_levels[2] ~ p.adjust,
+            TRUE ~ p.adjust
+        )
+    )
+
+go_df <- go_df %>%
+    mutate(ID = factor(ID, levels = unique(df[["ID"]]))) %>%
+    arrange(ID) %>%
+    mutate(Description = factor(Description, levels = rev(unique(Description))))
+
+p <- ggplot(go_df, aes(Cluster, Description, size = RichFactor, color = p.adjust)) +
+    geom_point() +
+    scale_color_gradient(low = "#e06663", high = "#327eba") +
+    scale_y_discrete(position = "right") +
+    guides(x = guide_axis(angle = 90)) +
+    labs(x = NULL, y = NULL) +
+    theme_bw(base_size = 18, base_family = "Arial")
+ppreview(p, file = file.path(output_dir, "temp.pdf"))
+```
+
+## Retrieve UniProt entries using REST API in batch
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(glue)
+library(rvest)
+
+# no more than 25
+max_length <- 20
+organism_id <- 9606
+url_template <- "https://rest.uniprot.org/uniprotkb/search?query=({accession_str})%20AND%20(active:true)%20AND%20(organism_id:{organism_id})&fields=accession,gene_primary,organism_name,organism_id,protein_name,annotation_score,protein_existence,reviewed,ft_intramem,cc_subcellular_location,ft_topo_dom,ft_transmem,go,go_p,go_c,go_f,cc_interaction&format=tsv"
+file <- "test.tsv"
+
+accessions <- vroom(file) %>%
+    pull(Entry) %>%
+    na.omit() %>%
+    unique()
+
+accession_ls <- split(accessions, ceiling(seq_along(accessions) / max_length))
+df <- tibble()
+for (accession_vec in accession_ls) {
+    accession_str <- paste0(paste0("accession:", accession_vec), collapse = "%20OR%20")
+    url_instance <- glue(url_template)
+
+    e <- try(item_raw_text <- read_html(url_instance) %>% html_text(), silent = T)
+    if ("try-error" %in% class(e)) {
+        message("invalid accession string: ", accession_str)
+    } else {
+        item_df <- vroom(I(item_raw_text), delim = "\t") %>%
+            mutate(
+                `Organism (ID)` = as.integer(`Organism (ID)`),
+                Annotation = as.integer(Annotation)
+            )
+        df <- bind_rows(df, item_df)
+    }
+}
+df <- distinct(df)
+```
