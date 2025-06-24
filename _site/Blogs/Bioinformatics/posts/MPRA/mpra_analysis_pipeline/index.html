@@ -197,7 +197,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div>
       <div class="quarto-title-meta-heading">Modified</div>
       <div class="quarto-title-meta-contents">
-        <p class="date-modified">March 26, 2025</p>
+        <p class="date-modified">June 22, 2025</p>
       </div>
     </div>
       
@@ -229,8 +229,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#md5sum-check-over-raw-fastq-files-1" id="toc-md5sum-check-over-raw-fastq-files-1" class="nav-link" data-scroll-target="#md5sum-check-over-raw-fastq-files-1"><span class="header-section-number">2.1</span> MD5SUM check over raw FASTQ files</a></li>
   <li><a href="#fastqc-over-raw-fastq-files-1" id="toc-fastqc-over-raw-fastq-files-1" class="nav-link" data-scroll-target="#fastqc-over-raw-fastq-files-1"><span class="header-section-number">2.2</span> FASTQC over raw FASTQ files</a></li>
-  <li><a href="#count-barcodes-1" id="toc-count-barcodes-1" class="nav-link" data-scroll-target="#count-barcodes-1"><span class="header-section-number">2.3</span> Count barcodes</a></li>
-  <li><a href="#attach-barcodes-to-cres" id="toc-attach-barcodes-to-cres" class="nav-link" data-scroll-target="#attach-barcodes-to-cres"><span class="header-section-number">2.4</span> Attach barcodes to CREs</a></li>
+  <li><a href="#count-barcodes-1" id="toc-count-barcodes-1" class="nav-link" data-scroll-target="#count-barcodes-1"><span class="header-section-number">2.3</span> Count barcodes</a>
+  <ul>
+  <li><a href="#solution-1" id="toc-solution-1" class="nav-link" data-scroll-target="#solution-1"><span class="header-section-number">2.3.1</span> Solution 1</a></li>
+  <li><a href="#solution-2" id="toc-solution-2" class="nav-link" data-scroll-target="#solution-2"><span class="header-section-number">2.3.2</span> Solution 2</a></li>
+  </ul></li>
+  <li><a href="#attach-barcodes-to-cres" id="toc-attach-barcodes-to-cres" class="nav-link" data-scroll-target="#attach-barcodes-to-cres"><span class="header-section-number">2.4</span> Attach barcodes to CREs</a>
+  <ul>
+  <li><a href="#solution-1-1" id="toc-solution-1-1" class="nav-link" data-scroll-target="#solution-1-1"><span class="header-section-number">2.4.1</span> Solution 1</a></li>
+  <li><a href="#solution-2-1" id="toc-solution-2-1" class="nav-link" data-scroll-target="#solution-2-1"><span class="header-section-number">2.4.2</span> Solution 2</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#identify-active-cres" id="toc-identify-active-cres" class="nav-link" data-scroll-target="#identify-active-cres"><span class="header-section-number">3</span> Identify active CREs</a>
+  <ul>
+  <li><a href="#q95-threshold-method" id="toc-q95-threshold-method" class="nav-link" data-scroll-target="#q95-threshold-method"><span class="header-section-number">3.1</span> Q95 threshold method</a></li>
+  <li><a href="#mpranalyze-method" id="toc-mpranalyze-method" class="nav-link" data-scroll-target="#mpranalyze-method"><span class="header-section-number">3.2</span> MPRAnalyze method</a></li>
+  </ul></li>
+  <li><a href="#peak-annotation" id="toc-peak-annotation" class="nav-link" data-scroll-target="#peak-annotation"><span class="header-section-number">4</span> Peak annotation</a></li>
+  <li><a href="#appendix" id="toc-appendix" class="nav-link" data-scroll-target="#appendix"><span class="header-section-number">5</span> Appendix</a>
+  <ul>
+  <li><a href="#identify-active-barcodes" id="toc-identify-active-barcodes" class="nav-link" data-scroll-target="#identify-active-barcodes"><span class="header-section-number">5.1</span> Identify active barcodes</a>
+  <ul>
+  <li><a href="#extract-barcode-sample-matrix" id="toc-extract-barcode-sample-matrix" class="nav-link" data-scroll-target="#extract-barcode-sample-matrix"><span class="header-section-number">5.1.1</span> Extract barcode-sample matrix</a></li>
+  <li><a href="#simple-threshold-method" id="toc-simple-threshold-method" class="nav-link" data-scroll-target="#simple-threshold-method"><span class="header-section-number">5.1.2</span> Simple threshold method</a></li>
+  <li><a href="#mpranalyze-method-1" id="toc-mpranalyze-method-1" class="nav-link" data-scroll-target="#mpranalyze-method-1"><span class="header-section-number">5.1.3</span> MPRAnalyze method</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/yr-neurospace/NeuroBorder/edit/main/Blogs/Bioinformatics/posts/MPRA/mpra_analysis_pipeline/index.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/blob/main/Blogs/Bioinformatics/posts/MPRA/mpra_analysis_pipeline/index.qmd" class="toc-action"><i class="bi empty"></i>View source</a></li><li><a href="https://github.com/yr-neurospace/NeuroBorder/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -249,17 +272,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="link-barcodes-to-cres" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="link-barcodes-to-cres"><span class="header-section-number">1</span> Link barcodes to CREs</h2>
 <p>Before running any of the following steps, you should rename your FASTQ files according to <a href="https://www.neuroborder.com/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/#copy-your-raw-fastq-data-to-a-new-directory-and-rename-them">these rules</a>.</p>
-<div id="8353abf9" class="cell" data-execution_count="1">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>work_dir <span class="op">=</span> <span class="st">"/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230"</span></span>
+<div id="1ad44b0e" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>work_dir <span class="op">=</span> <span class="st">"/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430"</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span>(work_dir)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<pre class="{r}"><code>work_dir &lt;- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230"
+<pre class="{r}"><code>work_dir &lt;- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430"
 
 setwd(work_dir)</code></pre>
 <section id="md5sum-check-over-raw-fastq-files" class="level3" data-number="1.1">
 <h3 data-number="1.1" class="anchored" data-anchor-id="md5sum-check-over-raw-fastq-files"><span class="header-section-number">1.1</span> MD5SUM check over raw FASTQ files</h3>
-<div id="3d99e32a" class="cell" data-execution_count="2">
+<div id="9cf08585" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
@@ -273,7 +296,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="fastqc-over-raw-fastq-files" class="level3" data-number="1.2">
 <h3 data-number="1.2" class="anchored" data-anchor-id="fastqc-over-raw-fastq-files"><span class="header-section-number">1.2</span> FASTQC over raw FASTQ files</h3>
-<div id="6a1a0ce0" class="cell" data-execution_count="3">
+<div id="9b787e89" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
@@ -287,7 +310,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="quality-trimming-over-raw-fastq-files" class="level3" data-number="1.3">
 <h3 data-number="1.3" class="anchored" data-anchor-id="quality-trimming-over-raw-fastq-files"><span class="header-section-number">1.3</span> Quality trimming over raw FASTQ files</h3>
-<div id="3489d44e" class="cell" data-execution_count="4">
+<div id="b962e5fd" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
@@ -317,7 +340,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="fastqc-over-clean-fastq-files" class="level3" data-number="1.4">
 <h3 data-number="1.4" class="anchored" data-anchor-id="fastqc-over-clean-fastq-files"><span class="header-section-number">1.4</span> FASTQC over clean FASTQ files</h3>
-<div id="a9213b12" class="cell" data-execution_count="5">
+<div id="eeb28ede" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>clean_fastq_dir <span class="op">=</span> <span class="st">"clean_fastq"</span></span>
@@ -332,7 +355,7 @@ setwd(work_dir)</code></pre>
 <section id="generate-reference-sequences" class="level3" data-number="1.5">
 <h3 data-number="1.5" class="anchored" data-anchor-id="generate-reference-sequences"><span class="header-section-number">1.5</span> Generate reference sequences</h3>
 <p>Write each reference sequence containing CRE as well as other necessary sequences and its ID into a FASTA file, which will be used later to build Bowtie2 reference index.</p>
-<div id="4550a3a2" class="cell" data-execution_count="6">
+<div id="6f58342d" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CSV</span>, <span class="bu">DataFrames</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>left_seq <span class="op">=</span> <span class="st">"TTCTCTGGCCTAACTGTCTAGACCTGCAGGAGGACCGGATCAACT"</span></span>
@@ -377,7 +400,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="build-bowtie2-index" class="level3" data-number="1.6">
 <h3 data-number="1.6" class="anchored" data-anchor-id="build-bowtie2-index"><span class="header-section-number">1.6</span> Build Bowtie2 index</h3>
-<div id="6e17f13b" class="cell" data-execution_count="7">
+<div id="0d5f4949" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>ref_fa <span class="op">=</span> <span class="st">"ref/mpra_ref.fa"</span></span>
@@ -408,7 +431,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="align-reads-with-bowtie2" class="level3" data-number="1.7">
 <h3 data-number="1.7" class="anchored" data-anchor-id="align-reads-with-bowtie2"><span class="header-section-number">1.7</span> Align reads with Bowtie2</h3>
-<div id="7d086029" class="cell" data-execution_count="8">
+<div id="261cb14a" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>clean_fastq_dir <span class="op">=</span> <span class="st">"clean_fastq"</span></span>
@@ -422,77 +445,78 @@ setwd(work_dir)</code></pre>
 <span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="fu">mkpath</span>(bam_dir)</span>
 <span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="fu">mkpath</span>(log_dir)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>clean_fastq_files <span class="op">=</span> YRUtils.BaseUtils.<span class="fu">list_files</span>(clean_fastq_dir, <span class="st">r"</span><span class="sc">\.</span><span class="ch">(</span><span class="st">fastq</span><span class="ch">|</span><span class="st">fq</span><span class="ch">)</span><span class="sc">\.</span><span class="st">gz</span><span class="sc">$</span><span class="st">", </span>recursive<span class="st">=false, full_name=true</span><span class="ch">)</span></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>dict <span class="op">=</span> YRUtils.BioUtils.<span class="fu">auto_detect_fastq_read_type</span>(clean_fastq_files)</span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>files_dict <span class="op">=</span> <span class="cf">if</span> dict[<span class="st">"paired"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    dict[<span class="st">"paired"</span>][<span class="st">"dict"</span>]</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="cf">elseif</span> dict[<span class="st">"single"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    dict[<span class="st">"single"</span>][<span class="st">"dict"</span>]</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@error</span> <span class="st">"did not detect any paired-end or single-end files"</span></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>files_read_type <span class="op">=</span> <span class="cf">if</span> dict[<span class="st">"paired"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"paired"</span></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="cf">elseif</span> dict[<span class="st">"single"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"single"</span></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@error</span> <span class="st">"did not detect any paired-end or single-end files"</span></span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> files_read_type <span class="op">==</span> <span class="st">"paired"</span></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> sample <span class="kw">in</span> <span class="fu">keys</span>(files_dict)</span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> replicate <span class="kw">in</span> <span class="fu">keys</span>(files_dict[sample])</span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>            r1_fq_files <span class="op">=</span> files_dict[sample][replicate][<span class="st">"R1"</span>]</span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>            r2_fq_files <span class="op">=</span> files_dict[sample][replicate][<span class="st">"R2"</span>]</span>
-<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>            bam_file <span class="op">=</span> <span class="fu">joinpath</span>(bam_dir, <span class="fu">string</span>(sample, <span class="st">"_"</span>, replicate, <span class="st">".chr_srt.bam"</span>))</span>
-<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">length</span>(r1_fq_files) <span class="op">&gt;</span> <span class="fl">1</span></span>
-<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>                r1_fq_file <span class="op">=</span> <span class="fu">joinpath</span>(tmp_dir, <span class="fu">string</span>(sample, <span class="st">"_"</span>, replicate, <span class="st">".R1.fq.gz"</span>))</span>
-<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>                cmd <span class="op">=</span> <span class="fu">Cmd</span>(<span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>,</span>
-<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">string</span>(<span class="st">"zcat -f "</span>, <span class="fu">join</span>(r1_fq_files, <span class="st">" "</span>),</span>
-<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>                        <span class="st">" | pigz -n -c &gt; "</span>,</span>
-<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>                        r1_fq_file)]))</span>
-<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
-<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>                <span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span>
-<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
-<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>                r1_fq_file <span class="op">=</span> r1_fq_files[<span class="fl">1</span>]</span>
-<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
-<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">length</span>(r2_fq_files) <span class="op">&gt;</span> <span class="fl">1</span></span>
-<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>                r2_fq_file <span class="op">=</span> <span class="fu">joinpath</span>(tmp_dir, <span class="fu">string</span>(sample, <span class="st">"_"</span>, replicate, <span class="st">".R2.fq.gz"</span>))</span>
-<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>                cmd <span class="op">=</span> <span class="fu">Cmd</span>(<span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>,</span>
-<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">string</span>(<span class="st">"zcat -f "</span>, <span class="fu">join</span>(r2_fq_files, <span class="st">" "</span>),</span>
-<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>                        <span class="st">" | pigz -n -c &gt; "</span>,</span>
-<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>                        r2_fq_file)]))</span>
-<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
-<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>                <span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span>
-<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
-<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>                r2_fq_file <span class="op">=</span> r2_fq_files[<span class="fl">1</span>]</span>
-<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
-<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>            cmd <span class="op">=</span> <span class="fu">pipeline</span>(</span>
-<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>                <span class="fu">Cmd</span>(</span>
-<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>,</span>
-<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">string</span>(<span class="st">"bowtie2 --np 0 -p "</span>, bowtie2_n_threads, <span class="st">" -x "</span>, bowtie2_index, <span class="st">" -1 "</span>, r1_fq_file, <span class="st">" -2 "</span>, r2_fq_file,</span>
-<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a>                            <span class="st">" | samtools view -S -u - | samtools sort -@ "</span>, samtools_n_threads, <span class="st">" -m "</span>, samtools_mem, <span class="st">" - -o "</span>, bam_file)]),</span>
-<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>                );</span>
-<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a>                <span class="cn">stdout</span><span class="op">=</span><span class="fu">joinpath</span>(log_dir, <span class="st">"bowtie2_align.log"</span>),</span>
-<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a>                <span class="cn">stderr</span><span class="op">=</span><span class="fu">joinpath</span>(log_dir, <span class="st">"bowtie2_align.log"</span>),</span>
-<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a>                append<span class="op">=</span><span class="cn">true</span>)</span>
-<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a>            <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
-<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>            <span class="fu">open</span>(io <span class="op">-&gt;</span> <span class="fu">println</span>(io, <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)),</span>
-<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a>                <span class="fu">joinpath</span>(log_dir, <span class="st">"bowtie2_align.log"</span>), <span class="st">"a"</span>)</span>
-<span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a>            <span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span>
-<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
-<span id="cb9-74"><a href="#cb9-74" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
-<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a>cmd <span class="op">=</span> <span class="fu">Cmd</span>(<span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>, <span class="fu">string</span>(<span class="st">"rm -rf "</span>, <span class="fu">joinpath</span>(tmp_dir, <span class="st">"*"</span>))]))</span>
-<span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a><span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
-<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a><span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="fu">mkpath</span>(tmp_dir)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>clean_fastq_files <span class="op">=</span> YRUtils.BaseUtils.<span class="fu">list_files</span>(clean_fastq_dir, <span class="st">r"</span><span class="sc">\.</span><span class="ch">(</span><span class="st">fastq</span><span class="ch">|</span><span class="st">fq</span><span class="ch">)</span><span class="sc">\.</span><span class="st">gz</span><span class="sc">$</span><span class="st">", </span>recursive<span class="st">=false, full_name=true</span><span class="ch">)</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>dict <span class="op">=</span> YRUtils.BioUtils.<span class="fu">auto_detect_fastq_read_type</span>(clean_fastq_files)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>files_dict <span class="op">=</span> <span class="cf">if</span> dict[<span class="st">"paired"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    dict[<span class="st">"paired"</span>][<span class="st">"dict"</span>]</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="cf">elseif</span> dict[<span class="st">"single"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    dict[<span class="st">"single"</span>][<span class="st">"dict"</span>]</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@error</span> <span class="st">"did not detect any paired-end or single-end files"</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>files_read_type <span class="op">=</span> <span class="cf">if</span> dict[<span class="st">"paired"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">"paired"</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="cf">elseif</span> dict[<span class="st">"single"</span>][<span class="st">"status"</span>] <span class="op">==</span> <span class="st">"yes"</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"single"</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@error</span> <span class="st">"did not detect any paired-end or single-end files"</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> files_read_type <span class="op">==</span> <span class="st">"paired"</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> sample <span class="kw">in</span> <span class="fu">keys</span>(files_dict)</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> replicate <span class="kw">in</span> <span class="fu">keys</span>(files_dict[sample])</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>            r1_fq_files <span class="op">=</span> files_dict[sample][replicate][<span class="st">"R1"</span>]</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>            r2_fq_files <span class="op">=</span> files_dict[sample][replicate][<span class="st">"R2"</span>]</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>            bam_file <span class="op">=</span> <span class="fu">joinpath</span>(bam_dir, <span class="fu">string</span>(sample, <span class="st">"_"</span>, replicate, <span class="st">".chr_srt.bam"</span>))</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">length</span>(r1_fq_files) <span class="op">&gt;</span> <span class="fl">1</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>                r1_fq_file <span class="op">=</span> <span class="fu">joinpath</span>(tmp_dir, <span class="fu">string</span>(sample, <span class="st">"_"</span>, replicate, <span class="st">".R1.fq.gz"</span>))</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>                cmd <span class="op">=</span> <span class="fu">Cmd</span>(<span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>,</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">string</span>(<span class="st">"zcat -f "</span>, <span class="fu">join</span>(r1_fq_files, <span class="st">" "</span>),</span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>                        <span class="st">" | pigz -n -c &gt; "</span>,</span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>                        r1_fq_file)]))</span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>                <span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>                r1_fq_file <span class="op">=</span> r1_fq_files[<span class="fl">1</span>]</span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">length</span>(r2_fq_files) <span class="op">&gt;</span> <span class="fl">1</span></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>                r2_fq_file <span class="op">=</span> <span class="fu">joinpath</span>(tmp_dir, <span class="fu">string</span>(sample, <span class="st">"_"</span>, replicate, <span class="st">".R2.fq.gz"</span>))</span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>                cmd <span class="op">=</span> <span class="fu">Cmd</span>(<span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>,</span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">string</span>(<span class="st">"zcat -f "</span>, <span class="fu">join</span>(r2_fq_files, <span class="st">" "</span>),</span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>                        <span class="st">" | pigz -n -c &gt; "</span>,</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>                        r2_fq_file)]))</span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>                <span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>                r2_fq_file <span class="op">=</span> r2_fq_files[<span class="fl">1</span>]</span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>            cmd <span class="op">=</span> <span class="fu">pipeline</span>(</span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>                <span class="fu">Cmd</span>(</span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>,</span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">string</span>(<span class="st">"bowtie2 --np 0 -p "</span>, bowtie2_n_threads, <span class="st">" -x "</span>, bowtie2_index, <span class="st">" -1 "</span>, r1_fq_file, <span class="st">" -2 "</span>, r2_fq_file,</span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>                            <span class="st">" | samtools view -S -u - | samtools sort -@ "</span>, samtools_n_threads, <span class="st">" -m "</span>, samtools_mem, <span class="st">" - -o "</span>, bam_file)]),</span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a>                );</span>
+<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a>                <span class="cn">stdout</span><span class="op">=</span><span class="fu">joinpath</span>(log_dir, <span class="st">"bowtie2_align.log"</span>),</span>
+<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a>                <span class="cn">stderr</span><span class="op">=</span><span class="fu">joinpath</span>(log_dir, <span class="st">"bowtie2_align.log"</span>),</span>
+<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a>                append<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>            <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
+<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a>            <span class="fu">open</span>(io <span class="op">-&gt;</span> <span class="fu">println</span>(io, <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)),</span>
+<span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a>                <span class="fu">joinpath</span>(log_dir, <span class="st">"bowtie2_align.log"</span>), <span class="st">"a"</span>)</span>
+<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a>            <span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb9-74"><a href="#cb9-74" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a>cmd <span class="op">=</span> <span class="fu">Cmd</span>(<span class="fu">string</span>.([<span class="st">"/usr/bin/bash"</span>, <span class="st">"-e"</span>, <span class="st">"-c"</span>, <span class="fu">string</span>(<span class="st">"rm -rf "</span>, <span class="fu">joinpath</span>(tmp_dir, <span class="st">"*"</span>))]))</span>
+<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a><span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"running "</span>, cmd, <span class="st">" ..."</span>)</span>
+<span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a><span class="fu">run</span>(cmd; wait<span class="op">=</span><span class="cn">true</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="remove-reads-unmapped-and-with-low-quality" class="level3" data-number="1.8">
 <h3 data-number="1.8" class="anchored" data-anchor-id="remove-reads-unmapped-and-with-low-quality"><span class="header-section-number">1.8</span> Remove reads unmapped and with low quality</h3>
-<div id="f24cbf3e" class="cell" data-execution_count="9">
+<div id="032fd35f" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>bam_dir <span class="op">=</span> <span class="st">"bam"</span></span>
@@ -547,7 +571,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="extract-cre-barcode-pairs" class="level3" data-number="1.9">
 <h3 data-number="1.9" class="anchored" data-anchor-id="extract-cre-barcode-pairs"><span class="header-section-number">1.9</span> Extract CRE-Barcode pairs</h3>
-<div id="dc411240" class="cell" data-execution_count="10">
+<div id="f049cafb" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">XAM</span>, <span class="bu">FASTX</span>, <span class="bu">CSV</span>, <span class="bu">DataFrames</span>, <span class="bu">YRUtils</span>, <span class="bu">Serialization</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">extract_cre_bc_pairs</span>(bam_file<span class="op">::</span><span class="dt">AbstractString</span>, ref_dict<span class="op">::</span><span class="dt">Dict{String,String}</span>;</span>
@@ -706,43 +730,210 @@ for (cre_bc_file in cre_bc_files) {
 </section>
 <section id="merge-all-cre-barcode-pairs" class="level3" data-number="1.11">
 <h3 data-number="1.11" class="anchored" data-anchor-id="merge-all-cre-barcode-pairs"><span class="header-section-number">1.11</span> Merge all CRE-Barcode pairs</h3>
-<pre class="{r}"><code>library(vroom)
-library(tidyverse)
+<pre class="{r}"><code>library(tidyverse)
+library(patchwork)
+library(vroom)
+library(YRUtils)
+
+# accept only one parameter (i.e., sample file names)
+# and return the sample IDs derived from the sample file names
+extract_sample_id &lt;- function(x) {
+    gsub(
+        "^/data/users/dell/mpra/link_barcode_to_cre/|high_qual_bam/|\\.chr_srt\\.uniq_cre_bc_pairs\\.tsv$",
+        "", file
+    )
+}
 
 input_dirs &lt;- c(
     "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230/high_qual_bam",
     "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20231027/high_qual_bam",
-    "/data/users/dell/mpra/link_barcode_to_cre/pcr_v20230922/high_qual_bam"
+    "/data/users/dell/mpra/link_barcode_to_cre/pcr_v20230922/high_qual_bam",
+    "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430/high_qual_bam"
 )
 output_dir &lt;- "/data/users/dell/mpra/link_barcode_to_cre/final_result"
+stats_columns &lt;- c("id", "cre", "barcode")
 
 files &lt;- list.files(input_dirs, pattern = "\\.tsv$", recursive = FALSE, full.names = TRUE)
 cre_bc_df &lt;- tibble()
 for (file in files) {
     cre_bc_df &lt;- bind_rows(
         cre_bc_df,
-        vroom(file) %&gt;% select(cre, barcode)
+        vroom(file) %&gt;%
+            select(cre, barcode) %&gt;%
+            mutate(
+                id = paste0(cre, ":", barcode),
+                sample = extract_sample_id(file)
+            )
     )
 }
-cre_bc_df &lt;- distinct(cre_bc_df)
-one_cre_barocdes &lt;- cre_bc_df %&gt;%
+
+# check overlapping ratios across samples using unique CRE-Barcode pairs/CREs/barcodes
+layout &lt;- "
+#A
+BC
+"
+for (stats_column in stats_columns) {
+    ls &lt;- lapply(split(cre_bc_df, cre_bc_df$sample), function(df) {
+        unique(na.omit(df[[stats_column]]))
+    })
+
+    ls_copy &lt;- ls
+    df &lt;- data.frame()
+    for (k in length(ls_copy):2) {
+        name_combn_vec &lt;- combn(names(ls_copy), k) |&gt;
+            apply(2, function(name_combn) {
+                paste0(name_combn, collapse = "&lt;*:*&gt;")
+            })
+
+        intersect_num_vec &lt;- c()
+        for (name_combn in name_combn_vec) {
+            name_vec &lt;- strsplit(name_combn, "&lt;*:*&gt;", fixed = TRUE)[[1]]
+            intersect_items &lt;- Reduce(intersect, ls_copy[name_vec])
+            intersect_num_vec &lt;- c(intersect_num_vec, length(intersect_items))
+            for (name in name_vec) {
+                ls_copy[[name]] &lt;- ls_copy[[name]][!(ls_copy[[name]] %in% intersect_items)]
+            }
+        }
+
+        df &lt;- rbind(
+            df,
+            data.frame(
+                combn_k = k,
+                combn = name_combn_vec,
+                intersect_num = intersect_num_vec
+            )
+        )
+    }
+    df &lt;- rbind(
+        df,
+        data.frame(
+            combn_k = 1,
+            combn = names(ls_copy),
+            intersect_num = sapply(ls_copy, length)
+        )
+    )
+    row.names(df) &lt;- NULL
+
+    for (name in names(ls)) {
+        df[[name]] &lt;- grepl(name, df$combn, fixed = TRUE)
+    }
+
+    df &lt;- pivot_longer(
+        df,
+        cols = -all_of(c("combn_k", "combn", "intersect_num")),
+        names_to = "sample", values_to = "is_match"
+    ) |&gt;
+        filter((intersect_num &gt; 0) &amp; is_match)
+    df &lt;- df |&gt;
+        arrange(combn_k, desc(intersect_num)) |&gt;
+        mutate(
+            sample = factor(sample, levels = rev(unique(sample))),
+            combn = factor(combn, levels = unique(combn))
+        )
+
+    set_size_df &lt;- data.frame(
+        sample = names(ls),
+        num = sapply(ls, length)
+    ) |&gt;
+        mutate(sample = factor(sample, levels = levels(df$sample)))
+    row.names(set_size_df) &lt;- NULL
+
+    mlog10 &lt;- scales::new_transform(
+        name = "mlog10",
+        transform = function(x) -log10(x),
+        inverse = function(x) 10^-x,
+        breaks = scales::breaks_log(),
+        format = scales::label_scientific(),
+        domain = c(.Machine$double.xmin, .Machine$double.xmax)
+    )
+
+    p_set_size_bar &lt;- ggplot(set_size_df, aes(num, sample)) +
+        geom_bar(stat = "identity") +
+        scale_y_discrete(position = "right") +
+        scale_x_continuous(
+            expand = expansion(0),
+            transform = mlog10
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_minimal() +
+        theme(
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            axis.ticks.x = element_line()
+        )
+
+    p_set_intersection_point &lt;- ggplot(df, aes(combn, sample)) +
+        geom_point() +
+        geom_line(aes(group = combn)) +
+        scale_y_discrete(position = "right") +
+        labs(x = NULL, y = NULL) +
+        theme_bw() +
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank()
+        )
+
+    p_set_intersection_bar &lt;- ggplot(
+        distinct(select(df, combn, intersect_num)),
+        aes(combn, intersect_num)
+    ) +
+        geom_bar(stat = "identity") +
+        scale_y_continuous(
+            expand = expansion(0),
+            transform = "log10",
+            position = "right",
+            labels = scales::label_scientific()
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_bw() +
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank()
+        )
+
+    p &lt;- p_set_intersection_bar + p_set_size_bar + p_set_intersection_point +
+        plot_layout(
+            design = layout,
+            widths = c(1, 3),
+            heights = c(2, 1)
+        )
+    ppreview(p, file = file.path(output_dir, paste0(stats_column, "_overlapping_ratios.upset.pdf")))
+
+    stats_df &lt;- df |&gt;
+        select(combn_k, combn, intersect_num) |&gt;
+        distinct() |&gt;
+        reframe(
+            combn_k = combn_k,
+            combn = combn,
+            intersect_num = intersect_num,
+            intersect_num_percent = intersect_num / sum(intersect_num) * 100
+        ) |&gt;
+        arrange(combn_k, intersect_num)
+    vroom_write(stats_df, file = file.path(output_dir, paste0(stats_column, "_overlapping_ratios.stats.txt")), col_names = TRUE, append = FALSE)
+}
+
+# output merged CRE-Barcode pairs
+merged_cre_bc_df &lt;- cre_bc_df %&gt;%
+    select(cre, barcode) %&gt;%
+    distinct()
+one_cre_barocdes &lt;- merged_cre_bc_df %&gt;%
     group_by(barcode) %&gt;%
     count() %&gt;%
     filter(n == 1) %&gt;%
     pull(barcode) %&gt;%
     unique()
-one_cre_bc_df &lt;- cre_bc_df %&gt;%
+one_cre_bc_df &lt;- merged_cre_bc_df %&gt;%
     filter(barcode %in% one_cre_barocdes) %&gt;%
     distinct()
 
-vroom_write(cre_bc_df, file = file.path(output_dir, "redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
+vroom_write(merged_cre_bc_df, file = file.path(output_dir, "redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
 vroom_write(one_cre_bc_df, file = file.path(output_dir, "non_redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)</code></pre>
 </section>
 </section>
 <section id="count-barcodes" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="count-barcodes"><span class="header-section-number">2</span> Count barcodes</h2>
 <p>Before running any of the following steps, you should rename your FASTQ files in this form: <code>ID_(RNA|DNA)_repN[_partN].R[123].(fq|fastq).gz</code> (<code>ID</code> can only contain <code>[a-zA-Z0-9]</code>; <code>N</code> can only contain <code>[0-9]</code>).</p>
-<div id="cf7ebd47" class="cell" data-execution_count="11">
+<div id="060da5df" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>work_dir <span class="op">=</span> <span class="st">"/data/users/dell/mpra/count_barcode/15bp_v20240627"</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span>(work_dir)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -752,7 +943,7 @@ vroom_write(one_cre_bc_df, file = file.path(output_dir, "non_redundant_cre_bc_pa
 setwd(work_dir)</code></pre>
 <section id="md5sum-check-over-raw-fastq-files-1" class="level3" data-number="2.1">
 <h3 data-number="2.1" class="anchored" data-anchor-id="md5sum-check-over-raw-fastq-files-1"><span class="header-section-number">2.1</span> MD5SUM check over raw FASTQ files</h3>
-<div id="f233a994" class="cell" data-execution_count="12">
+<div id="6a330950" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
@@ -766,7 +957,7 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="fastqc-over-raw-fastq-files-1" class="level3" data-number="2.2">
 <h3 data-number="2.2" class="anchored" data-anchor-id="fastqc-over-raw-fastq-files-1"><span class="header-section-number">2.2</span> FASTQC over raw FASTQ files</h3>
-<div id="acab03c1" class="cell" data-execution_count="13">
+<div id="f2c87a29" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">YRUtils</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
@@ -780,10 +971,12 @@ setwd(work_dir)</code></pre>
 </section>
 <section id="count-barcodes-1" class="level3" data-number="2.3">
 <h3 data-number="2.3" class="anchored" data-anchor-id="count-barcodes-1"><span class="header-section-number">2.3</span> Count barcodes</h3>
-<div id="a7c3d1bb" class="cell" data-execution_count="14">
+<section id="solution-1" class="level4" data-number="2.3.1">
+<h4 data-number="2.3.1" class="anchored" data-anchor-id="solution-1"><span class="header-section-number">2.3.1</span> Solution 1</h4>
+<div id="47a0a501" class="cell" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">FASTX</span>, <span class="bu">DataFrames</span>, <span class="bu">CSV</span>, <span class="bu">YRUtils</span>, <span class="bu">CodecZlib</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"/data/users/dell/mpra/count_barcode/15bp_v20240627/raw_fastq"</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>cre_bc_file <span class="op">=</span> <span class="st">"/data/users/dell/mpra/link_barcode_to_cre/final_result/redundant_cre_bc_pairs.tsv"</span></span>
 <span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>raw_bc_umi_dir <span class="op">=</span> <span class="st">"raw_bc_umi"</span></span>
 <span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>base_qual <span class="op">=</span> <span class="fl">20</span></span>
@@ -930,8 +1123,233 @@ setwd(work_dir)</code></pre>
 <span id="cb18-147"><a href="#cb18-147" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(raw_bc_umi_dir, <span class="st">"raw_bc_umi_pairs.tsv"</span>), bc_umi_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
+<section id="solution-2" class="level4" data-number="2.3.2">
+<h4 data-number="2.3.2" class="anchored" data-anchor-id="solution-2"><span class="header-section-number">2.3.2</span> Solution 2</h4>
+<div id="6582e8d5" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">FASTX</span>, <span class="bu">DataFrames</span>, <span class="bu">CSV</span>, <span class="bu">YRUtils</span>, <span class="bu">CodecZlib</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>raw_fastq_dir <span class="op">=</span> <span class="st">"raw_fastq"</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>extract_valid_barcode_dir <span class="op">=</span> <span class="st">"extract_valid_barcode"</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>base_qual <span class="op">=</span> <span class="fl">20</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>seqkit_nthreads <span class="op">=</span> <span class="fl">40</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>parallel_block_size <span class="op">=</span> <span class="fl">500000</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="fu">mkpath</span>(extract_valid_barcode_dir)</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>raw_fastq_file_name_pattern <span class="op">=</span> <span class="st">r"</span><span class="sc">.+</span><span class="st">/</span><span class="ch">(?</span><span class="st">&lt;id&gt;</span><span class="ch">[</span><span class="st">a-zA-Z0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">)</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;type&gt;RNA</span><span class="ch">|</span><span class="st">DNA</span><span class="ch">)</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;rep&gt;rep</span><span class="ch">[</span><span class="st">0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">)(</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;tech&gt;part</span><span class="ch">[</span><span class="st">0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">))</span><span class="sc">?\.</span><span class="ch">(?</span><span class="st">&lt;read&gt;R</span><span class="ch">[</span><span class="st">123</span><span class="ch">])</span><span class="sc">\.</span><span class="ch">(</span><span class="st">fq</span><span class="ch">|</span><span class="st">fastq</span><span class="ch">)</span><span class="sc">\.</span><span class="st">gz</span><span class="sc">$</span><span class="st">"</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>raw_fastq_files<span class="st"> = YRUtils</span><span class="sc">.</span><span class="st">BioUtils</span><span class="sc">.</span><span class="st">list_files</span><span class="ch">(</span><span class="st">raw_fastq_dir, raw_fastq_file_name_pattern; recursive=false, full_name=true</span><span class="ch">)</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>raw_fastq_nums <span class="op">=</span> YRUtils.BioUtils.<span class="fu">fq_num</span>(raw_fastq_files, seqkit_nthreads)</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>ms <span class="op">=</span> <span class="fu">match</span>.(raw_fastq_file_name_pattern, raw_fastq_files)</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>metadata_vec <span class="op">=</span> <span class="fu">Vector</span><span class="dt">{NTuple{7,String}}</span>(<span class="cn">undef</span>, <span class="fu">length</span>(ms))</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(ms)</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>    metadata_vec[i] <span class="op">=</span> (ms[i].match, ms[i][<span class="st">"id"</span>], ms[i][<span class="st">"type"</span>], ms[i][<span class="st">"rep"</span>], ms[i][<span class="st">"tech"</span>], ms[i][<span class="st">"read"</span>], <span class="fu">string</span>(raw_fastq_nums[ms[i].match]))</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="fu">unique</span>(<span class="fu">DataFrame</span>(metadata_vec, [<span class="op">:</span>file, <span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep, <span class="op">:</span>tech, <span class="op">:</span>read, <span class="op">:</span>num_seqs]))</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="fu">transform</span>(</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    df,</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep, <span class="op">:</span>tech] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>, rep, tech) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type, rep, tech], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>tech_sample,</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>, rep) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type, rep], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>rep_sample,</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>type_sample</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(extract_valid_barcode_dir, <span class="st">"fq_metadata.tsv"</span>), df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a><span class="co"># global var</span></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>top_dict <span class="op">=</span> <span class="fu">Dict</span><span class="dt">{String,Set{String}}</span>()</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (<span class="kw">type</span>, type_subdf) <span class="kw">in</span> <span class="fu">pairs</span>(<span class="fu">groupby</span>(df, <span class="op">:</span><span class="kw">type</span>))</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">global</span> top_dict</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># local var</span></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>    type_dict <span class="op">=</span> <span class="fu">Dict</span><span class="dt">{String,Set{String}}</span>()</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (biorep, biorep_subdf) <span class="kw">in</span> <span class="fu">pairs</span>(<span class="fu">groupby</span>(type_subdf, <span class="op">:</span>rep))</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>        <span class="co"># local var</span></span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>        biorep_df <span class="op">=</span> <span class="fu">DataFrame</span>(barcode<span class="op">=</span><span class="dt">String</span>[], count<span class="op">=</span><span class="dt">Int64</span>[])</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>        biorep_dict <span class="op">=</span> <span class="fu">Dict</span><span class="dt">{String,Set{String}}</span>()</span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (techrep, techrep_subdf) <span class="kw">in</span> <span class="fu">pairs</span>(<span class="fu">groupby</span>(biorep_subdf, <span class="op">:</span>tech))</span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>            <span class="co"># local var</span></span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>            techrep_dict <span class="op">=</span> <span class="fu">Dict</span><span class="dt">{String,Set{String}}</span>()</span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Read in reads</span></span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a>            read_dict <span class="op">=</span> <span class="fu">Dict</span>(read_type <span class="op">=&gt;</span> <span class="fu">Vector</span><span class="dt">{Tuple{String,String,String}}</span>(<span class="cn">undef</span>, <span class="fu">parse</span>(<span class="dt">Int64</span>, num_seqs)) <span class="cf">for</span> (read_type, num_seqs) <span class="kw">in</span> <span class="fu">collect</span>(<span class="fu">zip</span>(techrep_subdf[<span class="op">:</span>, <span class="op">:</span>read], techrep_subdf[<span class="op">:</span>, <span class="op">:</span>num_seqs])))</span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>            <span class="bu">Threads</span>.<span class="pp">@threads</span> <span class="cf">for</span> (read_type, num_seqs, fq_file) <span class="kw">in</span> <span class="fu">collect</span>(<span class="fu">zip</span>(techrep_subdf[<span class="op">:</span>, <span class="op">:</span>read], techrep_subdf[<span class="op">:</span>, <span class="op">:</span>num_seqs], techrep_subdf[<span class="op">:</span>, <span class="op">:</span>file]))</span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"start parsing "</span>, fq_file, <span class="st">" with read type "</span>, read_type, <span class="st">" and the number of sequences "</span>, num_seqs, <span class="st">" ..."</span>)</span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a>                <span class="fu">FASTQReader</span>(<span class="fu">GzipDecompressorStream</span>(<span class="fu">open</span>(fq_file))) <span class="cf">do</span> reader</span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a>                    record <span class="op">=</span> FASTQ.<span class="fu">Record</span>()</span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a>                    i <span class="op">=</span> <span class="fl">0</span></span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">while</span> !<span class="fu">eof</span>(reader)</span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a>                        i <span class="op">+=</span> <span class="fl">1</span></span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">empty!</span>(record)</span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">read!</span>(reader, record)</span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a>                        read_dict[read_type][i] <span class="op">=</span> (<span class="fu">identifier</span>(record), <span class="fu">sequence</span>(record), <span class="fu">join</span>(<span class="fu">collect</span>(<span class="fu">quality_scores</span>(record)), <span class="st">"/"</span>))</span>
+<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">end</span></span>
+<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"read in "</span>, i, <span class="st">" sequences in total for "</span>, fq_file)</span>
+<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> i <span class="op">!=</span> <span class="fu">parse</span>(<span class="dt">Int64</span>, num_seqs)</span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>                        <span class="pp">@error</span> <span class="fu">string</span>(<span class="st">"parsing file "</span>, fq_file, <span class="st">" failed!"</span>)</span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">end</span></span>
+<span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@info</span> <span class="fu">string</span>(<span class="st">"parsing "</span>, fq_file, <span class="st">" with read type "</span>, read_type, <span class="st">" and the number of sequences "</span>, num_seqs, <span class="st">" done!"</span>)</span>
+<span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Count qualified barcodes and their UMIs</span></span>
+<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a>            len_vec <span class="op">=</span> <span class="fu">length</span>.(<span class="fu">values</span>(read_dict))</span>
+<span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a>            <span class="co"># The three files should have the same number of lines</span></span>
+<span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">length</span>(<span class="fu">unique</span>(len_vec)) <span class="op">==</span> <span class="fl">1</span></span>
+<span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a>                bc_umi_vec <span class="op">=</span> <span class="fu">Vector</span><span class="dt">{Tuple{String,String,String,Vararg{Bool,3}}}</span>(<span class="cn">undef</span>, len_vec[<span class="fl">1</span>])</span>
+<span id="cb19-67"><a href="#cb19-67" aria-hidden="true" tabindex="-1"></a>                <span class="bu">Threads</span>.<span class="pp">@threads</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>len_vec[<span class="fl">1</span>]</span>
+<span id="cb19-68"><a href="#cb19-68" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># Read IDs should be identical across R1, R2, and R3</span></span>
+<span id="cb19-69"><a href="#cb19-69" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> read_dict[<span class="st">"R1"</span>][i][<span class="fl">1</span>] <span class="op">==</span> read_dict[<span class="st">"R2"</span>][i][<span class="fl">1</span>] <span class="op">==</span> read_dict[<span class="st">"R3"</span>][i][<span class="fl">1</span>]</span>
+<span id="cb19-70"><a href="#cb19-70" aria-hidden="true" tabindex="-1"></a>                        bc_umi_vec[i] <span class="op">=</span> (</span>
+<span id="cb19-71"><a href="#cb19-71" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># Read 1</span></span>
+<span id="cb19-72"><a href="#cb19-72" aria-hidden="true" tabindex="-1"></a>                            read_dict[<span class="st">"R1"</span>][i][<span class="fl">2</span>],</span>
+<span id="cb19-73"><a href="#cb19-73" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># Read 2</span></span>
+<span id="cb19-74"><a href="#cb19-74" aria-hidden="true" tabindex="-1"></a>                            read_dict[<span class="st">"R2"</span>][i][<span class="fl">2</span>],</span>
+<span id="cb19-75"><a href="#cb19-75" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># UMI</span></span>
+<span id="cb19-76"><a href="#cb19-76" aria-hidden="true" tabindex="-1"></a>                            read_dict[<span class="st">"R3"</span>][i][<span class="fl">2</span>],</span>
+<span id="cb19-77"><a href="#cb19-77" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># Read sequences should only contain A, T, C, and G across R1, R2, and R3</span></span>
+<span id="cb19-78"><a href="#cb19-78" aria-hidden="true" tabindex="-1"></a>                            !<span class="fu">occursin</span>(<span class="st">"N"</span>, <span class="fu">string</span>(read_dict[<span class="st">"R1"</span>][i][<span class="fl">2</span>], read_dict[<span class="st">"R2"</span>][i][<span class="fl">2</span>], read_dict[<span class="st">"R3"</span>][i][<span class="fl">2</span>])),</span>
+<span id="cb19-79"><a href="#cb19-79" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># All base qualities &gt;= base_qual across R1, R2, and R3</span></span>
+<span id="cb19-80"><a href="#cb19-80" aria-hidden="true" tabindex="-1"></a>                            <span class="fu">all</span>(<span class="fu">parse</span>.(<span class="dt">Int</span>, <span class="fu">split</span>(<span class="fu">string</span>(read_dict[<span class="st">"R1"</span>][i][<span class="fl">3</span>], <span class="st">"/"</span>, read_dict[<span class="st">"R2"</span>][i][<span class="fl">3</span>], <span class="st">"/"</span>, read_dict[<span class="st">"R3"</span>][i][<span class="fl">3</span>]), <span class="st">"/"</span>)) <span class="op">.&gt;=</span> base_qual),</span>
+<span id="cb19-81"><a href="#cb19-81" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># Read 1 and read 2 should be reverse and complementary</span></span>
+<span id="cb19-82"><a href="#cb19-82" aria-hidden="true" tabindex="-1"></a>                            YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(read_dict[<span class="st">"R1"</span>][i][<span class="fl">2</span>]) <span class="op">==</span> read_dict[<span class="st">"R2"</span>][i][<span class="fl">2</span>]</span>
+<span id="cb19-83"><a href="#cb19-83" aria-hidden="true" tabindex="-1"></a>                        )</span>
+<span id="cb19-84"><a href="#cb19-84" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span></span>
+<span id="cb19-85"><a href="#cb19-85" aria-hidden="true" tabindex="-1"></a>                        <span class="pp">@error</span> <span class="st">"read IDs are not identical across R1, R2, and R3"</span></span>
+<span id="cb19-86"><a href="#cb19-86" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">end</span></span>
+<span id="cb19-87"><a href="#cb19-87" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-88"><a href="#cb19-88" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
+<span id="cb19-89"><a href="#cb19-89" aria-hidden="true" tabindex="-1"></a>                <span class="pp">@error</span> <span class="st">"length(R1) == length(R2) == length(R3) is not true"</span></span>
+<span id="cb19-90"><a href="#cb19-90" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-91"><a href="#cb19-91" aria-hidden="true" tabindex="-1"></a>            read_dict <span class="op">=</span> <span class="cn">nothing</span></span>
+<span id="cb19-92"><a href="#cb19-92" aria-hidden="true" tabindex="-1"></a>            GC.<span class="fu">gc</span>()</span>
+<span id="cb19-93"><a href="#cb19-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-94"><a href="#cb19-94" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Filter out invalid Barcode-UMI pairs</span></span>
+<span id="cb19-95"><a href="#cb19-95" aria-hidden="true" tabindex="-1"></a>            valid_bc_umi_vec <span class="op">=</span> bc_umi_vec[<span class="fu">getindex</span>.(bc_umi_vec, <span class="fl">4</span>)<span class="op">.&amp;&amp;</span><span class="fu">getindex</span>.(bc_umi_vec, <span class="fl">5</span>)<span class="op">.&amp;&amp;</span><span class="fu">getindex</span>.(bc_umi_vec, <span class="fl">6</span>)]</span>
+<span id="cb19-96"><a href="#cb19-96" aria-hidden="true" tabindex="-1"></a>            bc_umi_vec <span class="op">=</span> <span class="cn">nothing</span></span>
+<span id="cb19-97"><a href="#cb19-97" aria-hidden="true" tabindex="-1"></a>            GC.<span class="fu">gc</span>()</span>
+<span id="cb19-98"><a href="#cb19-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-99"><a href="#cb19-99" aria-hidden="true" tabindex="-1"></a>            split_valid_bc_umi_vec <span class="op">=</span> <span class="fu">collect</span>(<span class="bu">Base</span>.<span class="bu">Iterators</span>.<span class="fu">partition</span>(valid_bc_umi_vec, parallel_block_size))</span>
+<span id="cb19-100"><a href="#cb19-100" aria-hidden="true" tabindex="-1"></a>            techrep_dict_vec <span class="op">=</span> [<span class="fu">Dict</span><span class="dt">{String,Set{String}}</span>() for _ <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(split_valid_bc_umi_vec)]</span>
+<span id="cb19-101"><a href="#cb19-101" aria-hidden="true" tabindex="-1"></a>            <span class="bu">Threads</span>.<span class="pp">@threads</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(split_valid_bc_umi_vec)</span>
+<span id="cb19-102"><a href="#cb19-102" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> item <span class="kw">in</span> split_valid_bc_umi_vec[i]</span>
+<span id="cb19-103"><a href="#cb19-103" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> <span class="fu">haskey</span>(techrep_dict_vec[i], item[<span class="fl">1</span>])</span>
+<span id="cb19-104"><a href="#cb19-104" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">push!</span>(techrep_dict_vec[i][item[<span class="fl">1</span>]], item[<span class="fl">3</span>])</span>
+<span id="cb19-105"><a href="#cb19-105" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">elseif</span> <span class="fu">haskey</span>(techrep_dict_vec[i], item[<span class="fl">2</span>])</span>
+<span id="cb19-106"><a href="#cb19-106" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">push!</span>(techrep_dict_vec[i][item[<span class="fl">2</span>]], item[<span class="fl">3</span>])</span>
+<span id="cb19-107"><a href="#cb19-107" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span></span>
+<span id="cb19-108"><a href="#cb19-108" aria-hidden="true" tabindex="-1"></a>                        techrep_dict_vec[i][item[<span class="fl">1</span>]] <span class="op">=</span> <span class="fu">Set</span>([item[<span class="fl">3</span>]])</span>
+<span id="cb19-109"><a href="#cb19-109" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">end</span></span>
+<span id="cb19-110"><a href="#cb19-110" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-111"><a href="#cb19-111" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-112"><a href="#cb19-112" aria-hidden="true" tabindex="-1"></a>            valid_bc_umi_vec <span class="op">=</span> <span class="cn">nothing</span></span>
+<span id="cb19-113"><a href="#cb19-113" aria-hidden="true" tabindex="-1"></a>            split_valid_bc_umi_vec <span class="op">=</span> <span class="cn">nothing</span></span>
+<span id="cb19-114"><a href="#cb19-114" aria-hidden="true" tabindex="-1"></a>            GC.<span class="fu">gc</span>()</span>
+<span id="cb19-115"><a href="#cb19-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-116"><a href="#cb19-116" aria-hidden="true" tabindex="-1"></a>            <span class="cf">while</span> <span class="cn">true</span></span>
+<span id="cb19-117"><a href="#cb19-117" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="fu">length</span>(techrep_dict_vec) <span class="op">&lt;=</span> <span class="fl">1</span></span>
+<span id="cb19-118"><a href="#cb19-118" aria-hidden="true" tabindex="-1"></a>                    techrep_dict <span class="op">=</span> techrep_dict_vec[<span class="fl">1</span>]</span>
+<span id="cb19-119"><a href="#cb19-119" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">break</span></span>
+<span id="cb19-120"><a href="#cb19-120" aria-hidden="true" tabindex="-1"></a>                <span class="cf">else</span></span>
+<span id="cb19-121"><a href="#cb19-121" aria-hidden="true" tabindex="-1"></a>                    split_techrep_dict_vec <span class="op">=</span> <span class="fu">convert</span>(<span class="dt">Vector</span>{<span class="dt">Vector</span>{<span class="dt">Dict</span>{<span class="dt">String</span>,<span class="dt">Set</span>{<span class="dt">String</span>}}}}, <span class="fu">collect</span>(<span class="bu">Base</span>.<span class="bu">Iterators</span>.<span class="fu">partition</span>(techrep_dict_vec, <span class="fl">2</span>)))</span>
+<span id="cb19-122"><a href="#cb19-122" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-123"><a href="#cb19-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-124"><a href="#cb19-124" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="fu">length</span>(split_techrep_dict_vec[<span class="kw">end</span>]) <span class="op">==</span> <span class="fl">1</span></span>
+<span id="cb19-125"><a href="#cb19-125" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">push!</span>(split_techrep_dict_vec[<span class="kw">end</span><span class="op">-</span><span class="fl">1</span>], <span class="fu">pop!</span>(split_techrep_dict_vec[<span class="kw">end</span>]))</span>
+<span id="cb19-126"><a href="#cb19-126" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">pop!</span>(split_techrep_dict_vec)</span>
+<span id="cb19-127"><a href="#cb19-127" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-128"><a href="#cb19-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-129"><a href="#cb19-129" aria-hidden="true" tabindex="-1"></a>                <span class="bu">Threads</span>.<span class="pp">@threads</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(split_techrep_dict_vec)</span>
+<span id="cb19-130"><a href="#cb19-130" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">for</span> j <span class="kw">in</span> <span class="fl">2</span><span class="op">:</span><span class="fu">length</span>(split_techrep_dict_vec[i])</span>
+<span id="cb19-131"><a href="#cb19-131" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">for</span> (k, v) <span class="kw">in</span> split_techrep_dict_vec[i][j]</span>
+<span id="cb19-132"><a href="#cb19-132" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">if</span> <span class="fu">haskey</span>(split_techrep_dict_vec[i][<span class="fl">1</span>], k)</span>
+<span id="cb19-133"><a href="#cb19-133" aria-hidden="true" tabindex="-1"></a>                                split_techrep_dict_vec[i][<span class="fl">1</span>][k] <span class="op">=</span> <span class="fu">union</span>(split_techrep_dict_vec[i][<span class="fl">1</span>][k], v)</span>
+<span id="cb19-134"><a href="#cb19-134" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">elseif</span> <span class="fu">haskey</span>(split_techrep_dict_vec[i][<span class="fl">1</span>], YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k))</span>
+<span id="cb19-135"><a href="#cb19-135" aria-hidden="true" tabindex="-1"></a>                                split_techrep_dict_vec[i][<span class="fl">1</span>][YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)] <span class="op">=</span> <span class="fu">union</span>(split_techrep_dict_vec[i][<span class="fl">1</span>][YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)], v)</span>
+<span id="cb19-136"><a href="#cb19-136" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">else</span></span>
+<span id="cb19-137"><a href="#cb19-137" aria-hidden="true" tabindex="-1"></a>                                split_techrep_dict_vec[i][<span class="fl">1</span>][k] <span class="op">=</span> v</span>
+<span id="cb19-138"><a href="#cb19-138" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">end</span></span>
+<span id="cb19-139"><a href="#cb19-139" aria-hidden="true" tabindex="-1"></a>                        <span class="cf">end</span></span>
+<span id="cb19-140"><a href="#cb19-140" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">end</span></span>
+<span id="cb19-141"><a href="#cb19-141" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-142"><a href="#cb19-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-143"><a href="#cb19-143" aria-hidden="true" tabindex="-1"></a>                techrep_dict_vec <span class="op">=</span> <span class="fu">getindex</span>.(split_techrep_dict_vec, <span class="fl">1</span>)</span>
+<span id="cb19-144"><a href="#cb19-144" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-145"><a href="#cb19-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-146"><a href="#cb19-146" aria-hidden="true" tabindex="-1"></a>            <span class="fu">open</span>(<span class="fu">joinpath</span>(extract_valid_barcode_dir, <span class="st">"fq_read_stats.txt"</span>), <span class="st">"a"</span>) <span class="cf">do</span> io</span>
+<span id="cb19-147"><a href="#cb19-147" aria-hidden="true" tabindex="-1"></a>                stat_str <span class="op">=</span> <span class="fu">string</span>(</span>
+<span id="cb19-148"><a href="#cb19-148" aria-hidden="true" tabindex="-1"></a>                    techrep_subdf.tech_sample[<span class="fl">1</span>], <span class="st">": "</span>, <span class="fu">length</span>(techrep_dict), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb19-149"><a href="#cb19-149" aria-hidden="true" tabindex="-1"></a>                <span class="fu">print</span>(io, stat_str)</span>
+<span id="cb19-150"><a href="#cb19-150" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-151"><a href="#cb19-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-152"><a href="#cb19-152" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">isempty</span>(biorep_dict)</span>
+<span id="cb19-153"><a href="#cb19-153" aria-hidden="true" tabindex="-1"></a>                biorep_dict <span class="op">=</span> techrep_dict</span>
+<span id="cb19-154"><a href="#cb19-154" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
+<span id="cb19-155"><a href="#cb19-155" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> (k, v) <span class="kw">in</span> techrep_dict</span>
+<span id="cb19-156"><a href="#cb19-156" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> <span class="fu">haskey</span>(biorep_dict, k)</span>
+<span id="cb19-157"><a href="#cb19-157" aria-hidden="true" tabindex="-1"></a>                        biorep_dict[k] <span class="op">=</span> <span class="fu">union</span>(biorep_dict[k], v)</span>
+<span id="cb19-158"><a href="#cb19-158" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">elseif</span> <span class="fu">haskey</span>(biorep_dict, YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k))</span>
+<span id="cb19-159"><a href="#cb19-159" aria-hidden="true" tabindex="-1"></a>                        biorep_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)] <span class="op">=</span> <span class="fu">union</span>(biorep_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)], v)</span>
+<span id="cb19-160"><a href="#cb19-160" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">else</span></span>
+<span id="cb19-161"><a href="#cb19-161" aria-hidden="true" tabindex="-1"></a>                        biorep_dict[k] <span class="op">=</span> v</span>
+<span id="cb19-162"><a href="#cb19-162" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">end</span></span>
+<span id="cb19-163"><a href="#cb19-163" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-164"><a href="#cb19-164" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-165"><a href="#cb19-165" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb19-166"><a href="#cb19-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-167"><a href="#cb19-167" aria-hidden="true" tabindex="-1"></a>        biorep_df <span class="op">=</span> <span class="fu">sort</span>(<span class="fu">DataFrame</span>([(barcode<span class="op">=</span>k, count<span class="op">=</span><span class="fu">length</span>(v)) for (k, v) <span class="kw">in</span> biorep_dict]), <span class="op">:</span>count, rev<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb19-168"><a href="#cb19-168" aria-hidden="true" tabindex="-1"></a>        CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(extract_valid_barcode_dir, <span class="fu">string</span>(biorep_subdf.rep_sample[<span class="fl">1</span>], <span class="st">".barcode_count.tsv"</span>)), biorep_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb19-169"><a href="#cb19-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-170"><a href="#cb19-170" aria-hidden="true" tabindex="-1"></a>        <span class="fu">open</span>(<span class="fu">joinpath</span>(extract_valid_barcode_dir, <span class="st">"fq_read_stats.txt"</span>), <span class="st">"a"</span>) <span class="cf">do</span> io</span>
+<span id="cb19-171"><a href="#cb19-171" aria-hidden="true" tabindex="-1"></a>            stat_str <span class="op">=</span> <span class="fu">string</span>(</span>
+<span id="cb19-172"><a href="#cb19-172" aria-hidden="true" tabindex="-1"></a>                biorep_subdf.rep_sample[<span class="fl">1</span>], <span class="st">": "</span>, <span class="fu">length</span>(biorep_dict), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb19-173"><a href="#cb19-173" aria-hidden="true" tabindex="-1"></a>            <span class="fu">print</span>(io, stat_str)</span>
+<span id="cb19-174"><a href="#cb19-174" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb19-175"><a href="#cb19-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-176"><a href="#cb19-176" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="fu">isempty</span>(type_dict)</span>
+<span id="cb19-177"><a href="#cb19-177" aria-hidden="true" tabindex="-1"></a>            type_dict <span class="op">=</span> biorep_dict</span>
+<span id="cb19-178"><a href="#cb19-178" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span></span>
+<span id="cb19-179"><a href="#cb19-179" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> (k, v) <span class="kw">in</span> biorep_dict</span>
+<span id="cb19-180"><a href="#cb19-180" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="fu">haskey</span>(type_dict, k)</span>
+<span id="cb19-181"><a href="#cb19-181" aria-hidden="true" tabindex="-1"></a>                    type_dict[k] <span class="op">=</span> <span class="fu">union</span>(type_dict[k], v)</span>
+<span id="cb19-182"><a href="#cb19-182" aria-hidden="true" tabindex="-1"></a>                <span class="cf">elseif</span> <span class="fu">haskey</span>(type_dict, YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k))</span>
+<span id="cb19-183"><a href="#cb19-183" aria-hidden="true" tabindex="-1"></a>                    type_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)] <span class="op">=</span> <span class="fu">union</span>(type_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)], v)</span>
+<span id="cb19-184"><a href="#cb19-184" aria-hidden="true" tabindex="-1"></a>                <span class="cf">else</span></span>
+<span id="cb19-185"><a href="#cb19-185" aria-hidden="true" tabindex="-1"></a>                    type_dict[k] <span class="op">=</span> v</span>
+<span id="cb19-186"><a href="#cb19-186" aria-hidden="true" tabindex="-1"></a>                <span class="cf">end</span></span>
+<span id="cb19-187"><a href="#cb19-187" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-188"><a href="#cb19-188" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb19-189"><a href="#cb19-189" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb19-190"><a href="#cb19-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-191"><a href="#cb19-191" aria-hidden="true" tabindex="-1"></a>    <span class="fu">open</span>(<span class="fu">joinpath</span>(extract_valid_barcode_dir, <span class="st">"fq_read_stats.txt"</span>), <span class="st">"a"</span>) <span class="cf">do</span> io</span>
+<span id="cb19-192"><a href="#cb19-192" aria-hidden="true" tabindex="-1"></a>        stat_str <span class="op">=</span> <span class="fu">string</span>(</span>
+<span id="cb19-193"><a href="#cb19-193" aria-hidden="true" tabindex="-1"></a>            type_subdf.<span class="kw">type</span>[<span class="fl">1</span>], <span class="st">": "</span>, <span class="fu">length</span>(type_dict), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb19-194"><a href="#cb19-194" aria-hidden="true" tabindex="-1"></a>        <span class="fu">print</span>(io, stat_str)</span>
+<span id="cb19-195"><a href="#cb19-195" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb19-196"><a href="#cb19-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-197"><a href="#cb19-197" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="fu">isempty</span>(top_dict)</span>
+<span id="cb19-198"><a href="#cb19-198" aria-hidden="true" tabindex="-1"></a>        top_dict <span class="op">=</span> type_dict</span>
+<span id="cb19-199"><a href="#cb19-199" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span></span>
+<span id="cb19-200"><a href="#cb19-200" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (k, v) <span class="kw">in</span> type_dict</span>
+<span id="cb19-201"><a href="#cb19-201" aria-hidden="true" tabindex="-1"></a>            <span class="kw">global</span> top_dict</span>
+<span id="cb19-202"><a href="#cb19-202" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="fu">haskey</span>(top_dict, k)</span>
+<span id="cb19-203"><a href="#cb19-203" aria-hidden="true" tabindex="-1"></a>                top_dict[k] <span class="op">=</span> <span class="fu">union</span>(top_dict[k], v)</span>
+<span id="cb19-204"><a href="#cb19-204" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elseif</span> <span class="fu">haskey</span>(top_dict, YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k))</span>
+<span id="cb19-205"><a href="#cb19-205" aria-hidden="true" tabindex="-1"></a>                top_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)] <span class="op">=</span> <span class="fu">union</span>(top_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)], v)</span>
+<span id="cb19-206"><a href="#cb19-206" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span></span>
+<span id="cb19-207"><a href="#cb19-207" aria-hidden="true" tabindex="-1"></a>                top_dict[k] <span class="op">=</span> v</span>
+<span id="cb19-208"><a href="#cb19-208" aria-hidden="true" tabindex="-1"></a>            <span class="cf">end</span></span>
+<span id="cb19-209"><a href="#cb19-209" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb19-210"><a href="#cb19-210" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb19-211"><a href="#cb19-211" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb19-212"><a href="#cb19-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-213"><a href="#cb19-213" aria-hidden="true" tabindex="-1"></a><span class="fu">open</span>(<span class="fu">joinpath</span>(extract_valid_barcode_dir, <span class="st">"fq_read_stats.txt"</span>), <span class="st">"a"</span>) <span class="cf">do</span> io</span>
+<span id="cb19-214"><a href="#cb19-214" aria-hidden="true" tabindex="-1"></a>    stat_str <span class="op">=</span> <span class="fu">string</span>(</span>
+<span id="cb19-215"><a href="#cb19-215" aria-hidden="true" tabindex="-1"></a>        <span class="st">"ALL: "</span>, <span class="fu">length</span>(top_dict), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb19-216"><a href="#cb19-216" aria-hidden="true" tabindex="-1"></a>    <span class="fu">print</span>(io, stat_str)</span>
+<span id="cb19-217"><a href="#cb19-217" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
 <section id="attach-barcodes-to-cres" class="level3" data-number="2.4">
 <h3 data-number="2.4" class="anchored" data-anchor-id="attach-barcodes-to-cres"><span class="header-section-number">2.4</span> Attach barcodes to CREs</h3>
+<section id="solution-1-1" class="level4" data-number="2.4.1">
+<h4 data-number="2.4.1" class="anchored" data-anchor-id="solution-1-1"><span class="header-section-number">2.4.1</span> Solution 1</h4>
 <pre class="{r}"><code>library(vroom)
 library(tidyverse)
 library(ggprism)
@@ -1020,8 +1438,499 @@ p &lt;- ggplot(count_df, aes(type, log2(n), fill = type, color = type)) +
     theme_prism(base_size = 20, base_family = "Arial", border = FALSE) +
     theme(legend.position = "none")
 ppreview(p, file = file.path(output_dir, "violin.pdf"))</code></pre>
+</section>
+<section id="solution-2-1" class="level4" data-number="2.4.2">
+<h4 data-number="2.4.2" class="anchored" data-anchor-id="solution-2-1"><span class="header-section-number">2.4.2</span> Solution 2</h4>
+<div id="702a972d" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CSV</span>, <span class="bu">DataFrames</span>, <span class="bu">YRUtils</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>extract_valid_barcode_dir <span class="op">=</span> <span class="st">"extract_valid_barcode"</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>output_dir <span class="op">=</span> <span class="st">"cre_bc_count"</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>cre_bc_file <span class="op">=</span> <span class="st">"/data/users/dell/mpra/link_barcode_to_cre/final_result/non_redundant_cre_bc_pairs.tsv"</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="fu">mkpath</span>(output_dir)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>cre_bc_df <span class="op">=</span> CSV.<span class="fu">read</span>(cre_bc_file, DataFrame; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>)</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>barcode_count_file_name_pattern <span class="op">=</span> <span class="st">r"</span><span class="sc">.+</span><span class="st">/</span><span class="ch">(?</span><span class="st">&lt;id&gt;</span><span class="ch">[</span><span class="st">a-zA-Z0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">)</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;type&gt;RNA</span><span class="ch">|</span><span class="st">DNA</span><span class="ch">)</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;rep&gt;rep</span><span class="ch">[</span><span class="st">0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">)</span><span class="sc">\.</span><span class="st">barcode_count</span><span class="sc">\.</span><span class="ch">(</span><span class="st">txt</span><span class="ch">|</span><span class="st">tsv</span><span class="ch">)</span><span class="sc">$</span><span class="st">"</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>barcode_count_files<span class="st"> = YRUtils</span><span class="sc">.</span><span class="st">BioUtils</span><span class="sc">.</span><span class="st">list_files</span><span class="ch">(</span><span class="st">extract_valid_barcode_dir, barcode_count_file_name_pattern; recursive=false, full_name=true</span><span class="ch">)</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>ms <span class="op">=</span> <span class="fu">match</span>.(barcode_count_file_name_pattern, barcode_count_files)</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>metadata_vec <span class="op">=</span> <span class="fu">Vector</span><span class="dt">{NTuple{4,String}}</span>(<span class="cn">undef</span>, <span class="fu">length</span>(ms))</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(ms)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>    metadata_vec[i] <span class="op">=</span> (ms[i].match, ms[i][<span class="st">"id"</span>], ms[i][<span class="st">"type"</span>], ms[i][<span class="st">"rep"</span>])</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="fu">unique</span>(<span class="fu">DataFrame</span>(metadata_vec, [<span class="op">:</span>file, <span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep]))</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="fu">transform</span>(</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>    df,</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>, rep) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type, rep], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>rep_sample,</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>type_sample</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"barcode_count_file_metadata.tsv"</span>), df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>cre_barcode_count_df <span class="op">=</span> <span class="fu">crossjoin</span>(<span class="fu">DataFrame</span>(cre<span class="op">=</span><span class="dt">String</span>[], barcode<span class="op">=</span><span class="dt">String</span>[], value_barcode<span class="op">=</span><span class="dt">String</span>[], count<span class="op">=</span><span class="dt">Int64</span>[], CPM<span class="op">=</span><span class="dt">Float64</span>[]), <span class="fu">empty</span>(df))</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row_subdf <span class="kw">in</span> <span class="fu">eachrow</span>(df)</span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">global</span> cre_barcode_count_df</span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> CSV.<span class="fu">read</span>(row_subdf.file, DataFrame; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>)</span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> <span class="fu">crossjoin</span>(barcode_count_df, <span class="fu">DataFrame</span>(row_subdf))</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>    barcode_count_df.CPM <span class="op">=</span> barcode_count_df.count <span class="op">*</span> <span class="fl">1000000</span> <span class="op">/</span> <span class="fu">sum</span>(barcode_count_df.count)</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>    in_barcode_set <span class="op">=</span> <span class="fu">in</span>(<span class="fu">Set</span>(barcode_count_df.barcode))</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>    cre_barcode_dict <span class="op">=</span> <span class="fu">Dict</span>(k <span class="op">=&gt;</span> <span class="st">""</span> <span class="cf">for</span> k <span class="kw">in</span> cre_bc_df.barcode)</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">Threads</span>.<span class="pp">@threads</span> <span class="cf">for</span> k <span class="kw">in</span> cre_bc_df.barcode</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="fu">in_barcode_set</span>(k)</span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>            cre_barcode_dict[k] <span class="op">=</span> k</span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elseif</span> <span class="fu">in_barcode_set</span>(YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k))</span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>            cre_barcode_dict[k] <span class="op">=</span> YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(k)</span>
+<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a>    bridge_barcode_df <span class="op">=</span> <span class="fu">DataFrame</span>([(key_barcode<span class="op">=</span>k, value_barcode<span class="op">=</span>v) for (k, v) <span class="kw">in</span> cre_barcode_dict])</span>
+<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a>    bridge_barcode_df <span class="op">=</span> <span class="fu">filter</span>(<span class="op">:</span>value_barcode <span class="op">=&gt;</span> x <span class="op">-&gt;</span> x <span class="op">!=</span> <span class="st">""</span>, bridge_barcode_df)</span>
+<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> <span class="fu">innerjoin</span>(bridge_barcode_df, barcode_count_df, on<span class="op">=:</span>value_barcode <span class="op">=&gt;</span> <span class="op">:</span>barcode)</span>
+<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> <span class="fu">innerjoin</span>(cre_bc_df, barcode_count_df, on<span class="op">=:</span>barcode <span class="op">=&gt;</span> <span class="op">:</span>key_barcode)</span>
+<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">append!</span>(cre_barcode_count_df, barcode_count_df; cols<span class="op">=:</span>setequal)</span>
+<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb21-47"><a href="#cb21-47" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"cre_barcode_count.tsv"</span>), cre_barcode_count_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="identify-active-cres" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="identify-active-cres"><span class="header-section-number">3</span> Identify active CREs</h2>
+<section id="q95-threshold-method" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="q95-threshold-method"><span class="header-section-number">3.1</span> Q95 threshold method</h3>
+<pre class="{r}"><code>library(vroom)
+library(tidyverse)
+library(YRUtils)
+
+cre_bc_count_file &lt;- "cre_bc_count/cre_barcode_count.tsv"
+output_dir &lt;- "identify_active.Q95"
+
+dir.create(output_dir)
+cre_bc_count_df &lt;- vroom(cre_bc_count_file)
+cre_bc_cpm_df &lt;- pivot_wider(cre_bc_count_df, id_cols = c("rep", "cre", "barcode"), names_from = "type", values_from = "CPM", values_fill = 0) %&gt;%
+    filter(DNA &gt; 0)
+
+cre_bc_qs &lt;- cre_bc_cpm_df %&gt;%
+    group_by(rep, cre) %&gt;%
+    reframe(n = n()) %&gt;%
+    pull(n) %&gt;%
+    quantile(probs = seq(0, 1, 0.05))
+sink(file = file.path(output_dir, "cre_bc_quantiles.txt"))
+print(cre_bc_qs)
+sink()
+
+cre_bc_cpm_df &lt;- cre_bc_cpm_df %&gt;%
+    group_by(rep, cre) %&gt;%
+    reframe(DNA = sum(DNA), RNA = sum(RNA)) %&gt;%
+    mutate(
+        activity = RNA / DNA,
+        cre_type = if_else(str_detect(cre, "^PSCE\\d+(_\\d+)?$"), "PSCE",
+            if_else(str_detect(cre, "^CTL\\d+(_\\d+)?"), "CTL", "NA")
+        ),
+        cre_type = factor(cre_type, levels = c("CTL", "PSCE")),
+        rep = factor(rep, levels = c("rep1", "rep2"))
+    )
+if (any(is.na(cre_bc_cpm_df$cre_type))) {
+    stop("unexpected CRE type found")
+}
+
+p_density &lt;- ggplot(cre_bc_cpm_df, aes(log2(activity + 1), fill = cre_type, color = cre_type)) +
+    geom_density(alpha = 0.1) +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    facet_grid(. ~ rep) +
+    labs(color = "CRE Type", fill = "CRE Type") +
+    theme_classic(base_size = 20, base_family = "Arial") +
+    theme(strip.background = element_blank())
+ppreview(p_density, file = file.path(output_dir, "density.pdf"))
+
+cre_bc_cpm_ls &lt;- split(cre_bc_cpm_df, cre_bc_cpm_df$rep)
+cre_bc_cpm_ls &lt;- lapply(cre_bc_cpm_ls, function(df) {
+    ctl_activity_qs &lt;- df %&gt;%
+        filter(cre_type == "CTL") %&gt;%
+        pull(activity) %&gt;%
+        quantile(probs = seq(0, 1, 0.05))
+    psce_activity_qs &lt;- df %&gt;%
+        filter(cre_type == "PSCE") %&gt;%
+        pull(activity) %&gt;%
+        quantile(probs = seq(0, 1, 0.05))
+    psce_df &lt;- df %&gt;%
+        filter(cre_type == "PSCE") %&gt;%
+        mutate(is_active = if_else(activity &gt; ctl_activity_qs["95%"], TRUE, FALSE)) %&gt;%
+        arrange(desc(is_active), desc(activity))
+    p_violin &lt;- ggplot(df, aes(
+        cre_type, activity,
+        fill = cre_type, color = cre_type
+    )) +
+        geom_violin(trim = TRUE, scale = "width", alpha = 0.5) +
+        scale_y_continuous(expand = expansion(mult = 0.02)) +
+        labs(x = NULL, y = "Activity") +
+        theme_classic(base_family = "Arial", base_size = 20) +
+        theme(legend.position = "none")
+    p_density &lt;- ggplot(df, aes(log2(activity + 1), fill = cre_type, color = cre_type)) +
+        geom_density(alpha = 0.1) +
+        geom_vline(xintercept = ctl_activity_qs["95%"], color = "grey", linetype = "dashed") +
+        scale_y_continuous(expand = expansion(mult = 0.02)) +
+        labs(color = "CRE Type", fill = "CRE Type") +
+        theme_classic(base_size = 20, base_family = "Arial")
+
+    list(
+        df = df %&gt;% arrange(cre_type, desc(activity)),
+        ctl_activity_qs = ctl_activity_qs,
+        psce_activity_qs = psce_activity_qs,
+        psce_df = psce_df,
+        violin = p_violin,
+        density = p_density
+    )
+})
+for (rep in names(cre_bc_cpm_ls)) {
+    vroom_write(cre_bc_cpm_ls[[rep]]$df, file = file.path(output_dir, paste0(rep, ".df.tsv")))
+    vroom_write(cre_bc_cpm_ls[[rep]]$psce_df, file = file.path(output_dir, paste0(rep, ".psce_df.tsv")))
+    sink(file = file.path(output_dir, paste0(rep, ".ctl_activity_quantiles.txt")))
+    print(cre_bc_cpm_ls[[rep]]$ctl_activity_qs)
+    sink()
+    sink(file = file.path(output_dir, paste0(rep, ".psce_activity_quantiles.txt")))
+    print(cre_bc_cpm_ls[[rep]]$psce_activity_qs)
+    sink()
+    ppreview(cre_bc_cpm_ls[[rep]]$violin, file = file.path(output_dir, paste0(rep, ".violin.pdf")))
+    ppreview(cre_bc_cpm_ls[[rep]]$density, file = file.path(output_dir, paste0(rep, ".density.pdf")))
+}
+
+join_df &lt;- full_join(
+    cre_bc_cpm_ls$rep1$psce_df %&gt;%
+        filter(is_active) %&gt;%
+        select(cre, activity, is_active),
+    cre_bc_cpm_ls$rep2$psce_df %&gt;%
+        filter(is_active) %&gt;%
+        select(cre, activity, is_active),
+    by = "cre", suffix = c(".rep1", ".rep2")
+) %&gt;%
+    mutate(both_are_active = if_else(is.na(is_active.rep1), "rep2",
+        if_else(is.na(is_active.rep2), "rep1", "both")
+    )) %&gt;%
+    arrange(both_are_active)
+vroom_write(join_df, file = file.path(output_dir, "rep1_rep2.psce_df.tsv"))</code></pre>
+</section>
+<section id="mpranalyze-method" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="mpranalyze-method"><span class="header-section-number">3.2</span> MPRAnalyze method</h3>
+<pre class="{r}"><code>library(MPRAnalyze)
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+library(magrittr)
+
+cre_bc_count_file &lt;- "cre_bc_count/cre_barcode_count.tsv"
+output_dir &lt;- "identify_active.MPRAnalyze"
+
+dir.create(output_dir)
+cre_bc_count_df &lt;- vroom(cre_bc_count_file)
+cre_bc_count_df &lt;- pivot_wider(cre_bc_count_df, id_cols = c("rep", "cre", "barcode"), names_from = "type", values_from = "count", values_fill = 0) %&gt;%
+    filter(DNA &gt; 0) %&gt;%
+    group_by(rep, cre) %&gt;%
+    reframe(DNA = sum(DNA), RNA = sum(RNA)) %&gt;%
+    mutate(
+        cre_type = if_else(str_detect(cre, "^PSCE\\d+(_\\d+)?$"), "PSCE",
+            if_else(str_detect(cre, "^CTL\\d+(_\\d+)?"), "CTL", "NA")
+        )
+    )
+dna_count_df &lt;- pivot_wider(cre_bc_count_df, id_cols = c("cre", "cre_type"), names_from = "rep", values_from = "DNA", values_fill = 0) %&gt;%
+    arrange(cre) %&gt;%
+    as.data.frame() %&gt;%
+    set_rownames(.[["cre"]])
+rna_count_df &lt;- pivot_wider(cre_bc_count_df, id_cols = c("cre", "cre_type"), names_from = "rep", values_from = "RNA", values_fill = 0) %&gt;%
+    arrange(cre) %&gt;%
+    as.data.frame() %&gt;%
+    set_rownames(.[["cre"]])
+if (!all(row.names(dna_count_df) == row.names(rna_count_df))) {
+    stop("the row names of DNA are not identical to the row names of RNA")
+}
+
+col_names &lt;- c("rep1", "rep2")
+obj &lt;- MpraObject(
+    dnaCounts = as.matrix(dna_count_df[, col_names]),
+    rnaCounts = as.matrix(rna_count_df[, col_names]),
+    dnaAnnot = data.frame(replicate = col_names, row.names = col_names),
+    rnaAnnot = data.frame(replicate = col_names, row.names = col_names),
+    controls = dna_count_df$cre_type == "CTL"
+)
+obj &lt;- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "dna", depth.estimator = "uq")
+obj &lt;- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "rna", depth.estimator = "uq")
+obj &lt;- analyzeQuantification(obj, dnaDesign = ~replicate, rnaDesign = ~1)
+
+alpha_df &lt;- getAlpha(obj) %&gt;%
+    mutate(
+        cre = row.names(.),
+        cre_type = if_else(str_detect(cre, "^PSCE\\d+(_\\d+)?$"), "PSCE",
+            if_else(str_detect(cre, "^CTL\\d+(_\\d+)?"), "CTL", "NA")
+        ),
+        cre_type = factor(cre_type, levels = c("CTL", "PSCE"))
+    )
+p_violin &lt;- ggplot(alpha_df, aes(
+    cre_type, alpha,
+    fill = cre_type, color = cre_type
+)) +
+    geom_violin(trim = TRUE, scale = "width", alpha = 0.5) +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    labs(x = NULL, y = "Activity") +
+    theme_classic(base_family = "Arial", base_size = 20) +
+    theme(legend.position = "none")
+ppreview(p_violin, file = file.path(output_dir, "alpha.violin.pdf"))
+p_density &lt;- ggplot(alpha_df, aes(alpha, fill = cre_type, color = cre_type)) +
+    geom_density(alpha = 0.1) +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    labs(color = "CRE Type", fill = "CRE Type") +
+    theme_classic(base_size = 20, base_family = "Arial")
+ppreview(p_density, file = file.path(output_dir, "alpha.density.pdf"))
+
+res_df &lt;- testEmpirical(obj, statistic = alpha_df$alpha)
+res_df &lt;- bind_cols(alpha_df, res_df) %&gt;%
+    mutate(
+        pval.empirical.adj = p.adjust(pval.empirical, method = "fdr"),
+        pval.mad.adj = p.adjust(pval.mad, method = "fdr"),
+        pval.zscore.adj = p.adjust(pval.zscore, method = "fdr")
+    ) %&gt;%
+    filter(cre_type == "PSCE") %&gt;%
+    arrange(pval.mad.adj) %&gt;%
+    mutate(is_active = if_else(pval.mad.adj &lt; 0.05, TRUE, FALSE))
+vroom_write(res_df, file = file.path(output_dir, "psce_df.tsv"))</code></pre>
+</section>
+</section>
+<section id="peak-annotation" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="peak-annotation"><span class="header-section-number">4</span> Peak annotation</h2>
+<pre class="{r}"><code>library(vroom)
+library(tidyverse)
+library(ggVennDiagram)
+library(YRUtils)
+library(ChIPseeker)
+library(AnnotationDbi)
+library(patchwork)
+
+mpt_file &lt;- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.trna.ercc.phix.gtf.gz.gene_id_name_mapping_table.tsv"
+txdb_file &lt;- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.TxDb.sqlite"
+mpra_test_file &lt;- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430/ref/2w_library.165bp.no_enzyme_cutting_sites.dealed.tsv"
+rep1_file &lt;- "identify_active.Q95/rep1.psce_df.tsv"
+rep2_file &lt;- "identify_active.Q95/rep2.psce_df.tsv"
+mpranalyze_file &lt;- "identify_active.MPRAnalyze/psce_df.tsv"
+output_dir &lt;- "identify_active.overlap"
+
+dir.create(output_dir)
+mpt_df &lt;- vroom(mpt_file) %&gt;%
+    dplyr::select(gene_id, gene_name, gene_biotype, gene_version, gene_level)
+txdb &lt;- loadDb(txdb_file)
+mpra_test_df &lt;- vroom(mpra_test_file) %&gt;%
+    dplyr::select(seqname, start, end, PSCE, PSCE_new_id) %&gt;%
+    mutate(id = paste0(seqname, ":", start, "-", end))
+rep1_df &lt;- vroom(rep1_file) %&gt;%
+    filter(is_active) %&gt;%
+    dplyr::select(-rep, -cre_type)
+rep2_df &lt;- vroom(rep2_file) %&gt;%
+    filter(is_active) %&gt;%
+    dplyr::select(-rep, -cre_type)
+mpranalyze_df &lt;- vroom(mpranalyze_file) %&gt;%
+    filter(is_active) %&gt;%
+    dplyr::select(-cre_type)
+names(mpranalyze_df) &lt;- paste0(names(mpranalyze_df), ".mpranalyze")
+
+join_df &lt;- full_join(rep1_df, rep2_df, by = "cre", suffix = c(".rep1", ".rep2")) %&gt;%
+    full_join(mpranalyze_df, by = c("cre" = "cre.mpranalyze")) %&gt;%
+    arrange(pval.mad.adj.mpranalyze) %&gt;%
+    inner_join(mpra_test_df, by = c("cre" = "PSCE_new_id"))
+vroom_write(join_df, file = file.path(output_dir, "overlap.df.tsv"))
+
+ls &lt;- list(rep1 = rep1_df$cre, rep2 = rep2_df$cre, mpranalyze = mpranalyze_df$cre.mpranalyze)
+p_venn &lt;- ggVennDiagram(ls, label_alpha = 0, label = "count", label_size = 12) +
+    scale_fill_gradient(low = "grey90", high = "#FF7256") +
+    xlim(c(-10, 10)) +
+    theme(legend.position = "none")
+ppreview(p_venn, file = file.path(output_dir, "overlap.venn.pdf"))
+
+gr &lt;- join_df[, c("seqname", "start", "end", "cre")] %&gt;%
+    as("GRanges")
+peak_anno &lt;- annotatePeak(gr, tssRegion = c(-3000, 3000), TxDb = txdb)
+
+p_bar &lt;- plotAnnoBar(peak_anno) +
+    labs(title = NULL) +
+    theme(text = element_text(family = "Arial", size = 20))
+ppreview(p_bar, file = file.path(output_dir, "peak_anno.feature_distribution.pdf"))
+
+p_tss &lt;- plotDistToTSS(peak_anno) +
+    labs(title = NULL) +
+    theme(text = element_text(family = "Arial", size = 20))
+ppreview(p_tss, file = file.path(output_dir, "peak_anno.distance_to_tss.pdf"))
+
+peak_anno_df &lt;- as.data.frame(peak_anno) %&gt;%
+    dplyr::select(cre, annotation, geneId, distanceToTSS) %&gt;%
+    inner_join(mpt_df, by = c("geneId" = "gene_id"))
+final_df &lt;- inner_join(join_df, peak_anno_df, by = "cre")
+vroom_write(final_df, file = file.path(output_dir, "overlap.peak_anno.df.tsv"))
+
+gene_list_df &lt;- final_df %&gt;%
+    dplyr::select(gene_name) %&gt;%
+    distinct() %&gt;%
+    mutate(cluster = "active_psce")
+vroom_write(gene_list_df, file.path(output_dir, "overlap.peak_anno.gene_list.df.tsv"))</code></pre>
+</section>
+<section id="appendix" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="appendix"><span class="header-section-number">5</span> Appendix</h2>
+<section id="identify-active-barcodes" class="level3" data-number="5.1">
+<h3 data-number="5.1" class="anchored" data-anchor-id="identify-active-barcodes"><span class="header-section-number">5.1</span> Identify active barcodes</h3>
+<section id="extract-barcode-sample-matrix" class="level4" data-number="5.1.1">
+<h4 data-number="5.1.1" class="anchored" data-anchor-id="extract-barcode-sample-matrix"><span class="header-section-number">5.1.1</span> Extract barcode-sample matrix</h4>
+<div id="4676a754" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CSV</span>, <span class="bu">DataFrames</span>, <span class="bu">YRUtils</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>extract_valid_barcode_dir <span class="op">=</span> <span class="st">"extract_valid_barcode"</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>output_dir <span class="op">=</span> <span class="st">"bc_count"</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="fu">mkpath</span>(output_dir)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>barcode_count_file_name_pattern <span class="op">=</span> <span class="st">r"</span><span class="sc">.+</span><span class="st">/</span><span class="ch">(?</span><span class="st">&lt;id&gt;</span><span class="ch">[</span><span class="st">a-zA-Z0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">)</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;type&gt;RNA</span><span class="ch">|</span><span class="st">DNA</span><span class="ch">)</span><span class="st">_</span><span class="ch">(?</span><span class="st">&lt;rep&gt;rep</span><span class="ch">[</span><span class="st">0-9</span><span class="ch">]</span><span class="sc">+</span><span class="ch">)</span><span class="sc">\.</span><span class="st">barcode_count</span><span class="sc">\.</span><span class="ch">(</span><span class="st">txt</span><span class="ch">|</span><span class="st">tsv</span><span class="ch">)</span><span class="sc">$</span><span class="st">"</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>barcode_count_files<span class="st"> = YRUtils</span><span class="sc">.</span><span class="st">BioUtils</span><span class="sc">.</span><span class="st">list_files</span><span class="ch">(</span><span class="st">extract_valid_barcode_dir, barcode_count_file_name_pattern; recursive=false, full_name=true</span><span class="ch">)</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>ms <span class="op">=</span> <span class="fu">match</span>.(barcode_count_file_name_pattern, barcode_count_files)</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>metadata_vec <span class="op">=</span> <span class="fu">Vector</span><span class="dt">{NTuple{4,String}}</span>(<span class="cn">undef</span>, <span class="fu">length</span>(ms))</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(ms)</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    metadata_vec[i] <span class="op">=</span> (ms[i].match, ms[i][<span class="st">"id"</span>], ms[i][<span class="st">"type"</span>], ms[i][<span class="st">"rep"</span>])</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="fu">unique</span>(<span class="fu">DataFrame</span>(metadata_vec, [<span class="op">:</span>file, <span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep]))</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="fu">transform</span>(</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    df,</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type, <span class="op">:</span>rep] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>, rep) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type, rep], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>rep_sample,</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    [<span class="op">:</span>id, <span class="op">:</span>type] <span class="op">=&gt;</span> <span class="fu">ByRow</span>((id, <span class="kw">type</span>) <span class="op">-&gt;</span> <span class="fu">join</span>([id, type], <span class="st">"_"</span>)) <span class="op">=&gt;</span> <span class="op">:</span>type_sample</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"barcode_count_file_metadata.tsv"</span>), df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>bridge_barcode_dict <span class="op">=</span> <span class="fu">Dict</span><span class="dt">{String,Dict{String,String}}</span>()</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row_subdf <span class="kw">in</span> <span class="fu">eachrow</span>(df)</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">global</span> bridge_barcode_dict</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> CSV.<span class="fu">read</span>(row_subdf.file, DataFrame; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>)</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> barcode <span class="kw">in</span> barcode_count_df.barcode</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>        <span class="kw">global</span> bridge_barcode_dict</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="fu">haskey</span>(bridge_barcode_dict, barcode)</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>            bridge_barcode_dict[barcode][row_subdf.rep_sample] <span class="op">=</span> barcode</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elseif</span> <span class="fu">haskey</span>(bridge_barcode_dict, YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(barcode))</span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>            bridge_barcode_dict[YRUtils.BioUtils.<span class="fu">rev_com_dna_seq</span>(barcode)][row_subdf.rep_sample] <span class="op">=</span> barcode</span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>            bridge_barcode_dict[barcode] <span class="op">=</span> <span class="fu">Dict</span>(k <span class="op">=&gt;</span> <span class="st">""</span> <span class="cf">for</span> k <span class="kw">in</span> df.rep_sample)</span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>            bridge_barcode_dict[barcode][row_subdf.rep_sample] <span class="op">=</span> barcode</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>all_barcode_count_df <span class="op">=</span> <span class="fu">crossjoin</span>(<span class="fu">DataFrame</span>(key_barcode<span class="op">=</span><span class="dt">String</span>[], value_barcode<span class="op">=</span><span class="dt">String</span>[], count<span class="op">=</span><span class="dt">Int64</span>[], CPM<span class="op">=</span><span class="dt">Float64</span>[]), <span class="fu">empty</span>(df))</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row_subdf <span class="kw">in</span> <span class="fu">eachrow</span>(df)</span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">global</span> bridge_barcode_dict</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> CSV.<span class="fu">read</span>(row_subdf.file, DataFrame; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>)</span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>    barcode_count_df.CPM <span class="op">=</span> barcode_count_df.count <span class="op">*</span> <span class="fl">1000000</span> <span class="op">/</span> <span class="fu">sum</span>(barcode_count_df.count)</span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> <span class="fu">crossjoin</span>(barcode_count_df, <span class="fu">DataFrame</span>(row_subdf))</span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>    bridge_barcode_df <span class="op">=</span> <span class="fu">DataFrame</span>([(key_barcode<span class="op">=</span>k, value_barcode<span class="op">=</span>v[row_subdf.rep_sample]) for (k, v) <span class="kw">in</span> bridge_barcode_dict if v[row_subdf.rep_sample] <span class="op">!=</span> <span class="st">""</span>])</span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a>    barcode_count_df <span class="op">=</span> <span class="fu">innerjoin</span>(bridge_barcode_df, barcode_count_df, on<span class="op">=:</span>value_barcode <span class="op">=&gt;</span> <span class="op">:</span>barcode)</span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">append!</span>(all_barcode_count_df, barcode_count_df; cols<span class="op">=:</span>setequal)</span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>wide_barcode_count_df <span class="op">=</span> <span class="fu">unstack</span>(all_barcode_count_df, <span class="op">:</span>key_barcode, <span class="op">:</span>rep_sample, <span class="op">:</span>count; fill<span class="op">=</span><span class="fl">0</span>)</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a>filtered_wide_barcode_count_df <span class="op">=</span> <span class="fu">filter</span>([<span class="op">:</span>HMC3MPRA_DNA_rep1, <span class="op">:</span>HMC3MPRA_DNA_rep2] <span class="op">=&gt;</span> (x, y) <span class="op">-&gt;</span> x <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;&amp;</span> y <span class="op">&gt;</span> <span class="fl">0</span>, wide_barcode_count_df)</span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a>wide_barcode_cpm_df <span class="op">=</span> <span class="fu">unstack</span>(all_barcode_count_df, <span class="op">:</span>key_barcode, <span class="op">:</span>rep_sample, <span class="op">:</span>CPM; fill<span class="op">=</span><span class="fl">0</span>)</span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a>filtered_wide_barcode_cpm_df <span class="op">=</span> <span class="fu">filter</span>([<span class="op">:</span>HMC3MPRA_DNA_rep1, <span class="op">:</span>HMC3MPRA_DNA_rep2] <span class="op">=&gt;</span> (x, y) <span class="op">-&gt;</span> x <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;&amp;</span> y <span class="op">&gt;</span> <span class="fl">0</span>, wide_barcode_cpm_df)</span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a>filtered_wide_barcode_cpm_df.rep1_ratio <span class="op">=</span> filtered_wide_barcode_cpm_df.HMC3MPRA_RNA_rep1 <span class="op">./</span> filtered_wide_barcode_cpm_df.HMC3MPRA_DNA_rep1</span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a>filtered_wide_barcode_cpm_df.rep2_ratio <span class="op">=</span> filtered_wide_barcode_cpm_df.HMC3MPRA_RNA_rep2 <span class="op">./</span> filtered_wide_barcode_cpm_df.HMC3MPRA_DNA_rep2</span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"barcode_count.tsv"</span>), all_barcode_count_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"wide_barcode_count.tsv"</span>), wide_barcode_count_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"filtered_wide_barcode_count.tsv"</span>), filtered_wide_barcode_count_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"wide_barcode_cpm.tsv"</span>), wide_barcode_cpm_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a>CSV.<span class="fu">write</span>(<span class="fu">joinpath</span>(output_dir, <span class="st">"filtered_wide_barcode_cpm.tsv"</span>), filtered_wide_barcode_cpm_df; header<span class="op">=</span><span class="cn">true</span>, delim<span class="op">=</span><span class="st">"</span><span class="sc">\t</span><span class="st">"</span>, append<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a>YRUtils.ShellUtils.<span class="fu">recur_pigz</span>(output_dir, <span class="st">r"</span><span class="sc">.+\.</span><span class="st">tsv</span><span class="sc">$</span><span class="st">"; </span>recursive<span class="st">=false, pigz_options="")</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="simple-threshold-method" class="level4" data-number="5.1.2">
+<h4 data-number="5.1.2" class="anchored" data-anchor-id="simple-threshold-method"><span class="header-section-number">5.1.2</span> Simple threshold method</h4>
+<pre class="{r}"><code>library(vroom)
+library(tidyverse)
+library(YRUtils)
+
+cpm_file &lt;- "bc_count/filtered_wide_barcode_cpm.tsv.gz"
+output_dir &lt;- "identify_bc_active.2-fold"
+
+dir.create(output_dir)
+cpm_df &lt;- vroom(cpm_file) %&gt;%
+    select(key_barcode, rep1_ratio, rep2_ratio) %&gt;%
+    rename(Rep1 = rep1_ratio, Rep2 = rep2_ratio) %&gt;%
+    pivot_longer(cols = c("Rep1", "Rep2"), names_to = "Replicate", values_to = "Activity") %&gt;%
+    mutate(log2Activity = log2(Activity + 1))
+
+p_density &lt;- ggplot(cpm_df, aes(log2Activity, fill = Replicate, color = Replicate)) +
+    geom_density(alpha = 0.1) +
+    geom_vline(xintercept = log2(3), linetype = "dashed", color = "grey") +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    scale_x_continuous(expand = expansion(mult = 0.02)) +
+    theme_classic(base_size = 20, base_family = "Arial")
+ppreview(p_density, file = file.path(output_dir, "density.pdf"))
+
+stat_df &lt;- cpm_df %&gt;%
+    mutate(is_active = log2Activity &gt; log2(3)) %&gt;%
+    group_by(Replicate) %&gt;%
+    reframe(n = n(), n_is_active = sum(is_active)) %&gt;%
+    mutate(ratio = n_is_active / n)
+vroom_write(stat_df, file = file.path(output_dir, "stat_df.tsv"))</code></pre>
+</section>
+<section id="mpranalyze-method-1" class="level4" data-number="5.1.3">
+<h4 data-number="5.1.3" class="anchored" data-anchor-id="mpranalyze-method-1"><span class="header-section-number">5.1.3</span> MPRAnalyze method</h4>
+<pre class="{r}"><code>library(MPRAnalyze)
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+library(magrittr)
+library(BiocParallel)
+
+count_file &lt;- "bc_count/filtered_wide_barcode_count.tsv.gz"
+output_dir &lt;- "identify_bc_active.MPRAnalyze"
+
+dir.create(output_dir)
+count_df &lt;- vroom(count_file)
+dna_count_df &lt;- count_df %&gt;%
+    as.data.frame() %&gt;%
+    set_rownames(.[["key_barcode"]]) %&gt;%
+    select(all_of(c("HMC3MPRA_DNA_rep1", "HMC3MPRA_DNA_rep2")))
+rna_count_df &lt;- count_df %&gt;%
+    as.data.frame() %&gt;%
+    set_rownames(.[["key_barcode"]]) %&gt;%
+    select(all_of(c("HMC3MPRA_RNA_rep1", "HMC3MPRA_RNA_rep2")))
+if (!all(row.names(dna_count_df) == row.names(rna_count_df))) {
+    stop("the row names of DNA are not identical to the row names of RNA")
+}
+
+col_names &lt;- c("rep1", "rep2")
+obj &lt;- MpraObject(
+    dnaCounts = as.matrix(dna_count_df),
+    rnaCounts = as.matrix(rna_count_df),
+    dnaAnnot = data.frame(replicate = col_names, row.names = colnames(dna_count_df)),
+    rnaAnnot = data.frame(replicate = col_names, row.names = colnames(rna_count_df)),
+    BPPARAM = MulticoreParam()
+)
+obj &lt;- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "dna", depth.estimator = "uq")
+obj &lt;- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "rna", depth.estimator = "uq")
+obj &lt;- analyzeQuantification(obj, dnaDesign = ~replicate, rnaDesign = ~1)
+
+alpha_df &lt;- getAlpha(obj) %&gt;%
+    mutate(
+        barcode = row.names(.),
+        log2Alpha = log2(alpha + 1)
+    )
+p_density &lt;- ggplot(alpha_df, aes(log2Alpha)) +
+    geom_density(alpha = 0.1, fill = "magenta", color = "magenta") +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    scale_x_continuous(expand = expansion(mult = 0.02)) +
+    theme_classic(base_size = 20, base_family = "Arial")
+ppreview(p_density, file = file.path(output_dir, "alpha.density.pdf"))
+
+res_df &lt;- testEmpirical(obj, statistic = alpha_df$alpha)
+res_df &lt;- bind_cols(alpha_df, res_df) %&gt;%
+    mutate(
+        pval.mad.adj = p.adjust(pval.mad, method = "fdr"),
+        pval.zscore.adj = p.adjust(pval.zscore, method = "fdr")
+    ) %&gt;%
+    arrange(pval.mad.adj) %&gt;%
+    mutate(is_active = if_else(pval.mad.adj &lt; 0.05, TRUE, FALSE))
+vroom_write(res_df, file = file.path(output_dir, "df.tsv"))</code></pre>
 
 
+</section>
 </section>
 </section>
 

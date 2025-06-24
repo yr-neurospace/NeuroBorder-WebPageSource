@@ -1,0 +1,75 @@
+---
+title: "Deploy and run RepeatModeler/RepeatMasker"
+author: "Rui Yang"
+date: "2025-06-17"
+date-modified: last-modified
+categories: [genome masking, repeatmodeler, repeatmasker]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+jupyter: julia-1.10
+execute:
+  warning: false
+  eval: false
+---
+
+## Deploy and run RepeatModeler/RepeatMasker using Singularity
+
+```{bash}
+# pull the Dfam TETools docker image
+# and save it as an SIF image file
+singularity pull dfam-tetools-latest.sif docker://dfam/tetools:latest
+
+# clone the Dfam TETools
+git clone https://github.com/Dfam-consortium/TETools.git
+
+# run the Dfam TETools singularity image
+/data/softwares/TETools/TETools/dfam-tetools.sh  --singularity --container /data/softwares/TETools/dfam-tetools-latest.sif
+
+# convert soft-masked genome sequences into unmasked genome sequences
+# for testing the pipeline only
+cat soft-masked.fa | awk '{if ($0 !~ /^>/) {print toupper($0)} else {print $0}}' > unmasked.fa
+
+## run RepeatModeler & RepeatMasker
+# for more info, see
+# https://github.com/Dfam-consortium/RepeatModeler
+# https://github.com/Dfam-consortium/TETools
+# https://www.repeatmasker.org
+db_name=sugarglider
+fa_file=sugarglider.fasta
+
+# format FASTA files for use with RepeatModeler
+BuildDatabase -name ${db_name} ${fa_file}
+
+# model repetitive DNA using RepeatModeler
+nohup RepeatModeler -database ${db_name} -threads 80 -LTRStruct &> ${db_name}.run_repeatmodeler.log &
+
+# save the last background process PID to a file
+echo $! > ${db_name}.run_repeatmodeler.pid
+# test whether the process is finished
+# if the process exists, then the return code is 0, or 1
+if kill -0 $(cat ${db_name}.run_repeatmodeler.pid) 2> /dev/null; then echo "The process is still running"; else echo "The process has finished"; fi
+if ps -p $(cat ${db_name}.run_repeatmodeler.pid) > /dev/null; then echo "The process is still running"; else echo "The process has finished"; fi
+
+# mask repetitive DNA using RepeatMasker
+repeatmasker_output_dir=${db_name}.repeatmasker_output
+
+nohup RepeatMasker -xsmall -a -e ncbi -gff -pa 30 -lib ${db_name}-families.fa -dir ${repeatmasker_output_dir} ${fa_file} &> ${db_name}.run_repeatmasker.log &
+
+# save the last background process PID to a file
+echo $! > ${db_name}.run_repeatmasker.pid
+# test whether the process is finished
+# if the process exists, then the return code is 0, or 1
+if kill -0 $(cat ${db_name}.run_repeatmasker.pid) 2> /dev/null; then echo "The process is still running"; else echo "The process has finished"; fi
+if ps -p $(cat ${db_name}.run_repeatmasker.pid) > /dev/null; then echo "The process is still running"; else echo "The process has finished"; fi
+```

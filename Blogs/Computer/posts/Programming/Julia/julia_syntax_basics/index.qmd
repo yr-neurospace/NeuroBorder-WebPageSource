@@ -3472,9 +3472,9 @@ for i = 1:10
     t = s + i # new local t
     s = t # new local s with warning
 end
-s, # global; should be 0
-@isdefined(t) # global; should be false
-""";
+s # global; should be 0
+@isdefined(t) # t is local, not global; should be false
+"""
 
 include_string(Main, code)
 ```

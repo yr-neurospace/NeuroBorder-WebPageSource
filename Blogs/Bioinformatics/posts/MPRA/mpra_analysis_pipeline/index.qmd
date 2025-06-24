@@ -28,13 +28,13 @@ execute:
 Before running any of the following steps, you should rename your FASTQ files according to [these rules](https://www.neuroborder.com/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/#copy-your-raw-fastq-data-to-a-new-directory-and-rename-them).
 
 ```{julia}
-work_dir = "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230"
+work_dir = "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430"
 
 cd(work_dir)
 ```
 
 ```{r}
-work_dir <- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230"
+work_dir <- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430"
 
 setwd(work_dir)
 ```
@@ -205,6 +205,7 @@ samtools_mem = "768M"
 
 mkpath(bam_dir)
 mkpath(log_dir)
+mkpath(tmp_dir)
 clean_fastq_files = YRUtils.BaseUtils.list_files(clean_fastq_dir, r"\.(fastq|fq)\.gz$", recursive=false, full_name=true)
 dict = YRUtils.BioUtils.auto_detect_fastq_read_type(clean_fastq_files)
 files_dict = if dict["paired"]["status"] == "yes"
@@ -492,36 +493,203 @@ for (cre_bc_file in cre_bc_files) {
 ### Merge all CRE-Barcode pairs
 
 ```{r}
-library(vroom)
 library(tidyverse)
+library(patchwork)
+library(vroom)
+library(YRUtils)
+
+# accept only one parameter (i.e., sample file names)
+# and return the sample IDs derived from the sample file names
+extract_sample_id <- function(x) {
+    gsub(
+        "^/data/users/dell/mpra/link_barcode_to_cre/|high_qual_bam/|\\.chr_srt\\.uniq_cre_bc_pairs\\.tsv$",
+        "", file
+    )
+}
 
 input_dirs <- c(
     "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20241230/high_qual_bam",
     "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20231027/high_qual_bam",
-    "/data/users/dell/mpra/link_barcode_to_cre/pcr_v20230922/high_qual_bam"
+    "/data/users/dell/mpra/link_barcode_to_cre/pcr_v20230922/high_qual_bam",
+    "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430/high_qual_bam"
 )
 output_dir <- "/data/users/dell/mpra/link_barcode_to_cre/final_result"
+stats_columns <- c("id", "cre", "barcode")
 
 files <- list.files(input_dirs, pattern = "\\.tsv$", recursive = FALSE, full.names = TRUE)
 cre_bc_df <- tibble()
 for (file in files) {
     cre_bc_df <- bind_rows(
         cre_bc_df,
-        vroom(file) %>% select(cre, barcode)
+        vroom(file) %>%
+            select(cre, barcode) %>%
+            mutate(
+                id = paste0(cre, ":", barcode),
+                sample = extract_sample_id(file)
+            )
     )
 }
-cre_bc_df <- distinct(cre_bc_df)
-one_cre_barocdes <- cre_bc_df %>%
+
+# check overlapping ratios across samples using unique CRE-Barcode pairs/CREs/barcodes
+layout <- "
+#A
+BC
+"
+for (stats_column in stats_columns) {
+    ls <- lapply(split(cre_bc_df, cre_bc_df$sample), function(df) {
+        unique(na.omit(df[[stats_column]]))
+    })
+
+    ls_copy <- ls
+    df <- data.frame()
+    for (k in length(ls_copy):2) {
+        name_combn_vec <- combn(names(ls_copy), k) |>
+            apply(2, function(name_combn) {
+                paste0(name_combn, collapse = "<*:*>")
+            })
+
+        intersect_num_vec <- c()
+        for (name_combn in name_combn_vec) {
+            name_vec <- strsplit(name_combn, "<*:*>", fixed = TRUE)[[1]]
+            intersect_items <- Reduce(intersect, ls_copy[name_vec])
+            intersect_num_vec <- c(intersect_num_vec, length(intersect_items))
+            for (name in name_vec) {
+                ls_copy[[name]] <- ls_copy[[name]][!(ls_copy[[name]] %in% intersect_items)]
+            }
+        }
+
+        df <- rbind(
+            df,
+            data.frame(
+                combn_k = k,
+                combn = name_combn_vec,
+                intersect_num = intersect_num_vec
+            )
+        )
+    }
+    df <- rbind(
+        df,
+        data.frame(
+            combn_k = 1,
+            combn = names(ls_copy),
+            intersect_num = sapply(ls_copy, length)
+        )
+    )
+    row.names(df) <- NULL
+
+    for (name in names(ls)) {
+        df[[name]] <- grepl(name, df$combn, fixed = TRUE)
+    }
+
+    df <- pivot_longer(
+        df,
+        cols = -all_of(c("combn_k", "combn", "intersect_num")),
+        names_to = "sample", values_to = "is_match"
+    ) |>
+        filter((intersect_num > 0) & is_match)
+    df <- df |>
+        arrange(combn_k, desc(intersect_num)) |>
+        mutate(
+            sample = factor(sample, levels = rev(unique(sample))),
+            combn = factor(combn, levels = unique(combn))
+        )
+
+    set_size_df <- data.frame(
+        sample = names(ls),
+        num = sapply(ls, length)
+    ) |>
+        mutate(sample = factor(sample, levels = levels(df$sample)))
+    row.names(set_size_df) <- NULL
+
+    mlog10 <- scales::new_transform(
+        name = "mlog10",
+        transform = function(x) -log10(x),
+        inverse = function(x) 10^-x,
+        breaks = scales::breaks_log(),
+        format = scales::label_scientific(),
+        domain = c(.Machine$double.xmin, .Machine$double.xmax)
+    )
+
+    p_set_size_bar <- ggplot(set_size_df, aes(num, sample)) +
+        geom_bar(stat = "identity") +
+        scale_y_discrete(position = "right") +
+        scale_x_continuous(
+            expand = expansion(0),
+            transform = mlog10
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_minimal() +
+        theme(
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            axis.ticks.x = element_line()
+        )
+
+    p_set_intersection_point <- ggplot(df, aes(combn, sample)) +
+        geom_point() +
+        geom_line(aes(group = combn)) +
+        scale_y_discrete(position = "right") +
+        labs(x = NULL, y = NULL) +
+        theme_bw() +
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank()
+        )
+
+    p_set_intersection_bar <- ggplot(
+        distinct(select(df, combn, intersect_num)),
+        aes(combn, intersect_num)
+    ) +
+        geom_bar(stat = "identity") +
+        scale_y_continuous(
+            expand = expansion(0),
+            transform = "log10",
+            position = "right",
+            labels = scales::label_scientific()
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_bw() +
+        theme(
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank()
+        )
+
+    p <- p_set_intersection_bar + p_set_size_bar + p_set_intersection_point +
+        plot_layout(
+            design = layout,
+            widths = c(1, 3),
+            heights = c(2, 1)
+        )
+    ppreview(p, file = file.path(output_dir, paste0(stats_column, "_overlapping_ratios.upset.pdf")))
+
+    stats_df <- df |>
+        select(combn_k, combn, intersect_num) |>
+        distinct() |>
+        reframe(
+            combn_k = combn_k,
+            combn = combn,
+            intersect_num = intersect_num,
+            intersect_num_percent = intersect_num / sum(intersect_num) * 100
+        ) |>
+        arrange(combn_k, intersect_num)
+    vroom_write(stats_df, file = file.path(output_dir, paste0(stats_column, "_overlapping_ratios.stats.txt")), col_names = TRUE, append = FALSE)
+}
+
+# output merged CRE-Barcode pairs
+merged_cre_bc_df <- cre_bc_df %>%
+    select(cre, barcode) %>%
+    distinct()
+one_cre_barocdes <- merged_cre_bc_df %>%
     group_by(barcode) %>%
     count() %>%
     filter(n == 1) %>%
     pull(barcode) %>%
     unique()
-one_cre_bc_df <- cre_bc_df %>%
+one_cre_bc_df <- merged_cre_bc_df %>%
     filter(barcode %in% one_cre_barocdes) %>%
     distinct()
 
-vroom_write(cre_bc_df, file = file.path(output_dir, "redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
+vroom_write(merged_cre_bc_df, file = file.path(output_dir, "redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
 vroom_write(one_cre_bc_df, file = file.path(output_dir, "non_redundant_cre_bc_pairs.tsv"), col_names = TRUE, append = FALSE)
 ```
 
@@ -571,10 +739,12 @@ YRUtils.BioUtils.fastqc(raw_fastq_files, raw_fastqc_dir;
 
 ### Count barcodes
 
+#### Solution 1
+
 ```{julia}
 using FASTX, DataFrames, CSV, YRUtils, CodecZlib
 
-raw_fastq_dir = "/data/users/dell/mpra/count_barcode/15bp_v20240627/raw_fastq"
+raw_fastq_dir = "raw_fastq"
 cre_bc_file = "/data/users/dell/mpra/link_barcode_to_cre/final_result/redundant_cre_bc_pairs.tsv"
 raw_bc_umi_dir = "raw_bc_umi"
 base_qual = 20
@@ -721,7 +891,231 @@ bc_umi_df = reduce(vcat, collect(values(df_dict)); cols=:setequal)
 CSV.write(joinpath(raw_bc_umi_dir, "raw_bc_umi_pairs.tsv"), bc_umi_df; header=true, delim="\t", append=false)
 ```
 
+#### Solution 2
+
+```{julia}
+using FASTX, DataFrames, CSV, YRUtils, CodecZlib
+
+raw_fastq_dir = "raw_fastq"
+extract_valid_barcode_dir = "extract_valid_barcode"
+base_qual = 20
+seqkit_nthreads = 40
+parallel_block_size = 500000
+
+mkpath(extract_valid_barcode_dir)
+raw_fastq_file_name_pattern = r".+/(?<id>[a-zA-Z0-9]+)_(?<type>RNA|DNA)_(?<rep>rep[0-9]+)(_(?<tech>part[0-9]+))?\.(?<read>R[123])\.(fq|fastq)\.gz$"
+raw_fastq_files = YRUtils.BioUtils.list_files(raw_fastq_dir, raw_fastq_file_name_pattern; recursive=false, full_name=true)
+raw_fastq_nums = YRUtils.BioUtils.fq_num(raw_fastq_files, seqkit_nthreads)
+ms = match.(raw_fastq_file_name_pattern, raw_fastq_files)
+metadata_vec = Vector{NTuple{7,String}}(undef, length(ms))
+for i in 1:length(ms)
+    metadata_vec[i] = (ms[i].match, ms[i]["id"], ms[i]["type"], ms[i]["rep"], ms[i]["tech"], ms[i]["read"], string(raw_fastq_nums[ms[i].match]))
+end
+df = unique(DataFrame(metadata_vec, [:file, :id, :type, :rep, :tech, :read, :num_seqs]))
+df = transform(
+    df,
+    [:id, :type, :rep, :tech] => ByRow((id, type, rep, tech) -> join([id, type, rep, tech], "_")) => :tech_sample,
+    [:id, :type, :rep] => ByRow((id, type, rep) -> join([id, type, rep], "_")) => :rep_sample,
+    [:id, :type] => ByRow((id, type) -> join([id, type], "_")) => :type_sample
+)
+CSV.write(joinpath(extract_valid_barcode_dir, "fq_metadata.tsv"), df; header=true, delim="\t", append=false)
+
+# global var
+top_dict = Dict{String,Set{String}}()
+for (type, type_subdf) in pairs(groupby(df, :type))
+    global top_dict
+    # local var
+    type_dict = Dict{String,Set{String}}()
+    for (biorep, biorep_subdf) in pairs(groupby(type_subdf, :rep))
+        # local var
+        biorep_df = DataFrame(barcode=String[], count=Int64[])
+        biorep_dict = Dict{String,Set{String}}()
+        for (techrep, techrep_subdf) in pairs(groupby(biorep_subdf, :tech))
+            # local var
+            techrep_dict = Dict{String,Set{String}}()
+
+            # Read in reads
+            read_dict = Dict(read_type => Vector{Tuple{String,String,String}}(undef, parse(Int64, num_seqs)) for (read_type, num_seqs) in collect(zip(techrep_subdf[:, :read], techrep_subdf[:, :num_seqs])))
+            Threads.@threads for (read_type, num_seqs, fq_file) in collect(zip(techrep_subdf[:, :read], techrep_subdf[:, :num_seqs], techrep_subdf[:, :file]))
+                @info string("start parsing ", fq_file, " with read type ", read_type, " and the number of sequences ", num_seqs, " ...")
+                FASTQReader(GzipDecompressorStream(open(fq_file))) do reader
+                    record = FASTQ.Record()
+                    i = 0
+                    while !eof(reader)
+                        i += 1
+                        empty!(record)
+                        read!(reader, record)
+                        read_dict[read_type][i] = (identifier(record), sequence(record), join(collect(quality_scores(record)), "/"))
+                    end
+                    @info string("read in ", i, " sequences in total for ", fq_file)
+                    if i != parse(Int64, num_seqs)
+                        @error string("parsing file ", fq_file, " failed!")
+                    end
+                end
+                @info string("parsing ", fq_file, " with read type ", read_type, " and the number of sequences ", num_seqs, " done!")
+            end
+
+            # Count qualified barcodes and their UMIs
+            len_vec = length.(values(read_dict))
+            # The three files should have the same number of lines
+            if length(unique(len_vec)) == 1
+                bc_umi_vec = Vector{Tuple{String,String,String,Vararg{Bool,3}}}(undef, len_vec[1])
+                Threads.@threads for i in 1:len_vec[1]
+                    # Read IDs should be identical across R1, R2, and R3
+                    if read_dict["R1"][i][1] == read_dict["R2"][i][1] == read_dict["R3"][i][1]
+                        bc_umi_vec[i] = (
+                            # Read 1
+                            read_dict["R1"][i][2],
+                            # Read 2
+                            read_dict["R2"][i][2],
+                            # UMI
+                            read_dict["R3"][i][2],
+                            # Read sequences should only contain A, T, C, and G across R1, R2, and R3
+                            !occursin("N", string(read_dict["R1"][i][2], read_dict["R2"][i][2], read_dict["R3"][i][2])),
+                            # All base qualities >= base_qual across R1, R2, and R3
+                            all(parse.(Int, split(string(read_dict["R1"][i][3], "/", read_dict["R2"][i][3], "/", read_dict["R3"][i][3]), "/")) .>= base_qual),
+                            # Read 1 and read 2 should be reverse and complementary
+                            YRUtils.BioUtils.rev_com_dna_seq(read_dict["R1"][i][2]) == read_dict["R2"][i][2]
+                        )
+                    else
+                        @error "read IDs are not identical across R1, R2, and R3"
+                    end
+                end
+            else
+                @error "length(R1) == length(R2) == length(R3) is not true"
+            end
+            read_dict = nothing
+            GC.gc()
+
+            # Filter out invalid Barcode-UMI pairs
+            valid_bc_umi_vec = bc_umi_vec[getindex.(bc_umi_vec, 4).&&getindex.(bc_umi_vec, 5).&&getindex.(bc_umi_vec, 6)]
+            bc_umi_vec = nothing
+            GC.gc()
+
+            split_valid_bc_umi_vec = collect(Base.Iterators.partition(valid_bc_umi_vec, parallel_block_size))
+            techrep_dict_vec = [Dict{String,Set{String}}() for _ in 1:length(split_valid_bc_umi_vec)]
+            Threads.@threads for i in 1:length(split_valid_bc_umi_vec)
+                for item in split_valid_bc_umi_vec[i]
+                    if haskey(techrep_dict_vec[i], item[1])
+                        push!(techrep_dict_vec[i][item[1]], item[3])
+                    elseif haskey(techrep_dict_vec[i], item[2])
+                        push!(techrep_dict_vec[i][item[2]], item[3])
+                    else
+                        techrep_dict_vec[i][item[1]] = Set([item[3]])
+                    end
+                end
+            end
+            valid_bc_umi_vec = nothing
+            split_valid_bc_umi_vec = nothing
+            GC.gc()
+
+            while true
+                if length(techrep_dict_vec) <= 1
+                    techrep_dict = techrep_dict_vec[1]
+                    break
+                else
+                    split_techrep_dict_vec = convert(Vector{Vector{Dict{String,Set{String}}}}, collect(Base.Iterators.partition(techrep_dict_vec, 2)))
+                end
+
+                if length(split_techrep_dict_vec[end]) == 1
+                    push!(split_techrep_dict_vec[end-1], pop!(split_techrep_dict_vec[end]))
+                    pop!(split_techrep_dict_vec)
+                end
+
+                Threads.@threads for i in 1:length(split_techrep_dict_vec)
+                    for j in 2:length(split_techrep_dict_vec[i])
+                        for (k, v) in split_techrep_dict_vec[i][j]
+                            if haskey(split_techrep_dict_vec[i][1], k)
+                                split_techrep_dict_vec[i][1][k] = union(split_techrep_dict_vec[i][1][k], v)
+                            elseif haskey(split_techrep_dict_vec[i][1], YRUtils.BioUtils.rev_com_dna_seq(k))
+                                split_techrep_dict_vec[i][1][YRUtils.BioUtils.rev_com_dna_seq(k)] = union(split_techrep_dict_vec[i][1][YRUtils.BioUtils.rev_com_dna_seq(k)], v)
+                            else
+                                split_techrep_dict_vec[i][1][k] = v
+                            end
+                        end
+                    end
+                end
+
+                techrep_dict_vec = getindex.(split_techrep_dict_vec, 1)
+            end
+
+            open(joinpath(extract_valid_barcode_dir, "fq_read_stats.txt"), "a") do io
+                stat_str = string(
+                    techrep_subdf.tech_sample[1], ": ", length(techrep_dict), "\n")
+                print(io, stat_str)
+            end
+
+            if isempty(biorep_dict)
+                biorep_dict = techrep_dict
+            else
+                for (k, v) in techrep_dict
+                    if haskey(biorep_dict, k)
+                        biorep_dict[k] = union(biorep_dict[k], v)
+                    elseif haskey(biorep_dict, YRUtils.BioUtils.rev_com_dna_seq(k))
+                        biorep_dict[YRUtils.BioUtils.rev_com_dna_seq(k)] = union(biorep_dict[YRUtils.BioUtils.rev_com_dna_seq(k)], v)
+                    else
+                        biorep_dict[k] = v
+                    end
+                end
+            end
+        end
+
+        biorep_df = sort(DataFrame([(barcode=k, count=length(v)) for (k, v) in biorep_dict]), :count, rev=true)
+        CSV.write(joinpath(extract_valid_barcode_dir, string(biorep_subdf.rep_sample[1], ".barcode_count.tsv")), biorep_df; header=true, delim="\t", append=false)
+
+        open(joinpath(extract_valid_barcode_dir, "fq_read_stats.txt"), "a") do io
+            stat_str = string(
+                biorep_subdf.rep_sample[1], ": ", length(biorep_dict), "\n")
+            print(io, stat_str)
+        end
+
+        if isempty(type_dict)
+            type_dict = biorep_dict
+        else
+            for (k, v) in biorep_dict
+                if haskey(type_dict, k)
+                    type_dict[k] = union(type_dict[k], v)
+                elseif haskey(type_dict, YRUtils.BioUtils.rev_com_dna_seq(k))
+                    type_dict[YRUtils.BioUtils.rev_com_dna_seq(k)] = union(type_dict[YRUtils.BioUtils.rev_com_dna_seq(k)], v)
+                else
+                    type_dict[k] = v
+                end
+            end
+        end
+    end
+
+    open(joinpath(extract_valid_barcode_dir, "fq_read_stats.txt"), "a") do io
+        stat_str = string(
+            type_subdf.type[1], ": ", length(type_dict), "\n")
+        print(io, stat_str)
+    end
+
+    if isempty(top_dict)
+        top_dict = type_dict
+    else
+        for (k, v) in type_dict
+            global top_dict
+            if haskey(top_dict, k)
+                top_dict[k] = union(top_dict[k], v)
+            elseif haskey(top_dict, YRUtils.BioUtils.rev_com_dna_seq(k))
+                top_dict[YRUtils.BioUtils.rev_com_dna_seq(k)] = union(top_dict[YRUtils.BioUtils.rev_com_dna_seq(k)], v)
+            else
+                top_dict[k] = v
+            end
+        end
+    end
+end
+
+open(joinpath(extract_valid_barcode_dir, "fq_read_stats.txt"), "a") do io
+    stat_str = string(
+        "ALL: ", length(top_dict), "\n")
+    print(io, stat_str)
+end
+```
+
 ### Attach barcodes to CREs
+
+#### Solution 1
 
 ```{r}
 library(vroom)
@@ -812,4 +1206,501 @@ p <- ggplot(count_df, aes(type, log2(n), fill = type, color = type)) +
     theme_prism(base_size = 20, base_family = "Arial", border = FALSE) +
     theme(legend.position = "none")
 ppreview(p, file = file.path(output_dir, "violin.pdf"))
+```
+
+#### Solution 2
+
+```{julia}
+using CSV, DataFrames, YRUtils
+
+extract_valid_barcode_dir = "extract_valid_barcode"
+output_dir = "cre_bc_count"
+cre_bc_file = "/data/users/dell/mpra/link_barcode_to_cre/final_result/non_redundant_cre_bc_pairs.tsv"
+
+mkpath(output_dir)
+cre_bc_df = CSV.read(cre_bc_file, DataFrame; header=true, delim="\t")
+barcode_count_file_name_pattern = r".+/(?<id>[a-zA-Z0-9]+)_(?<type>RNA|DNA)_(?<rep>rep[0-9]+)\.barcode_count\.(txt|tsv)$"
+barcode_count_files = YRUtils.BioUtils.list_files(extract_valid_barcode_dir, barcode_count_file_name_pattern; recursive=false, full_name=true)
+ms = match.(barcode_count_file_name_pattern, barcode_count_files)
+metadata_vec = Vector{NTuple{4,String}}(undef, length(ms))
+for i in 1:length(ms)
+    metadata_vec[i] = (ms[i].match, ms[i]["id"], ms[i]["type"], ms[i]["rep"])
+end
+df = unique(DataFrame(metadata_vec, [:file, :id, :type, :rep]))
+df = transform(
+    df,
+    [:id, :type, :rep] => ByRow((id, type, rep) -> join([id, type, rep], "_")) => :rep_sample,
+    [:id, :type] => ByRow((id, type) -> join([id, type], "_")) => :type_sample
+)
+CSV.write(joinpath(output_dir, "barcode_count_file_metadata.tsv"), df; header=true, delim="\t", append=false)
+
+cre_barcode_count_df = crossjoin(DataFrame(cre=String[], barcode=String[], value_barcode=String[], count=Int64[], CPM=Float64[]), empty(df))
+for row_subdf in eachrow(df)
+    global cre_barcode_count_df
+    barcode_count_df = CSV.read(row_subdf.file, DataFrame; header=true, delim="\t")
+    barcode_count_df = crossjoin(barcode_count_df, DataFrame(row_subdf))
+    barcode_count_df.CPM = barcode_count_df.count * 1000000 / sum(barcode_count_df.count)
+
+    in_barcode_set = in(Set(barcode_count_df.barcode))
+    cre_barcode_dict = Dict(k => "" for k in cre_bc_df.barcode)
+    Threads.@threads for k in cre_bc_df.barcode
+        if in_barcode_set(k)
+            cre_barcode_dict[k] = k
+        elseif in_barcode_set(YRUtils.BioUtils.rev_com_dna_seq(k))
+            cre_barcode_dict[k] = YRUtils.BioUtils.rev_com_dna_seq(k)
+        end
+    end
+    bridge_barcode_df = DataFrame([(key_barcode=k, value_barcode=v) for (k, v) in cre_barcode_dict])
+    bridge_barcode_df = filter(:value_barcode => x -> x != "", bridge_barcode_df)
+
+    barcode_count_df = innerjoin(bridge_barcode_df, barcode_count_df, on=:value_barcode => :barcode)
+    barcode_count_df = innerjoin(cre_bc_df, barcode_count_df, on=:barcode => :key_barcode)
+    append!(cre_barcode_count_df, barcode_count_df; cols=:setequal)
+end
+CSV.write(joinpath(output_dir, "cre_barcode_count.tsv"), cre_barcode_count_df; header=true, delim="\t", append=false)
+```
+
+## Identify active CREs
+
+### Q95 threshold method
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+
+cre_bc_count_file <- "cre_bc_count/cre_barcode_count.tsv"
+output_dir <- "identify_active.Q95"
+
+dir.create(output_dir)
+cre_bc_count_df <- vroom(cre_bc_count_file)
+cre_bc_cpm_df <- pivot_wider(cre_bc_count_df, id_cols = c("rep", "cre", "barcode"), names_from = "type", values_from = "CPM", values_fill = 0) %>%
+    filter(DNA > 0)
+
+cre_bc_qs <- cre_bc_cpm_df %>%
+    group_by(rep, cre) %>%
+    reframe(n = n()) %>%
+    pull(n) %>%
+    quantile(probs = seq(0, 1, 0.05))
+sink(file = file.path(output_dir, "cre_bc_quantiles.txt"))
+print(cre_bc_qs)
+sink()
+
+cre_bc_cpm_df <- cre_bc_cpm_df %>%
+    group_by(rep, cre) %>%
+    reframe(DNA = sum(DNA), RNA = sum(RNA)) %>%
+    mutate(
+        activity = RNA / DNA,
+        cre_type = if_else(str_detect(cre, "^PSCE\\d+(_\\d+)?$"), "PSCE",
+            if_else(str_detect(cre, "^CTL\\d+(_\\d+)?"), "CTL", "NA")
+        ),
+        cre_type = factor(cre_type, levels = c("CTL", "PSCE")),
+        rep = factor(rep, levels = c("rep1", "rep2"))
+    )
+if (any(is.na(cre_bc_cpm_df$cre_type))) {
+    stop("unexpected CRE type found")
+}
+
+p_density <- ggplot(cre_bc_cpm_df, aes(log2(activity + 1), fill = cre_type, color = cre_type)) +
+    geom_density(alpha = 0.1) +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    facet_grid(. ~ rep) +
+    labs(color = "CRE Type", fill = "CRE Type") +
+    theme_classic(base_size = 20, base_family = "Arial") +
+    theme(strip.background = element_blank())
+ppreview(p_density, file = file.path(output_dir, "density.pdf"))
+
+cre_bc_cpm_ls <- split(cre_bc_cpm_df, cre_bc_cpm_df$rep)
+cre_bc_cpm_ls <- lapply(cre_bc_cpm_ls, function(df) {
+    ctl_activity_qs <- df %>%
+        filter(cre_type == "CTL") %>%
+        pull(activity) %>%
+        quantile(probs = seq(0, 1, 0.05))
+    psce_activity_qs <- df %>%
+        filter(cre_type == "PSCE") %>%
+        pull(activity) %>%
+        quantile(probs = seq(0, 1, 0.05))
+    psce_df <- df %>%
+        filter(cre_type == "PSCE") %>%
+        mutate(is_active = if_else(activity > ctl_activity_qs["95%"], TRUE, FALSE)) %>%
+        arrange(desc(is_active), desc(activity))
+    p_violin <- ggplot(df, aes(
+        cre_type, activity,
+        fill = cre_type, color = cre_type
+    )) +
+        geom_violin(trim = TRUE, scale = "width", alpha = 0.5) +
+        scale_y_continuous(expand = expansion(mult = 0.02)) +
+        labs(x = NULL, y = "Activity") +
+        theme_classic(base_family = "Arial", base_size = 20) +
+        theme(legend.position = "none")
+    p_density <- ggplot(df, aes(log2(activity + 1), fill = cre_type, color = cre_type)) +
+        geom_density(alpha = 0.1) +
+        geom_vline(xintercept = ctl_activity_qs["95%"], color = "grey", linetype = "dashed") +
+        scale_y_continuous(expand = expansion(mult = 0.02)) +
+        labs(color = "CRE Type", fill = "CRE Type") +
+        theme_classic(base_size = 20, base_family = "Arial")
+
+    list(
+        df = df %>% arrange(cre_type, desc(activity)),
+        ctl_activity_qs = ctl_activity_qs,
+        psce_activity_qs = psce_activity_qs,
+        psce_df = psce_df,
+        violin = p_violin,
+        density = p_density
+    )
+})
+for (rep in names(cre_bc_cpm_ls)) {
+    vroom_write(cre_bc_cpm_ls[[rep]]$df, file = file.path(output_dir, paste0(rep, ".df.tsv")))
+    vroom_write(cre_bc_cpm_ls[[rep]]$psce_df, file = file.path(output_dir, paste0(rep, ".psce_df.tsv")))
+    sink(file = file.path(output_dir, paste0(rep, ".ctl_activity_quantiles.txt")))
+    print(cre_bc_cpm_ls[[rep]]$ctl_activity_qs)
+    sink()
+    sink(file = file.path(output_dir, paste0(rep, ".psce_activity_quantiles.txt")))
+    print(cre_bc_cpm_ls[[rep]]$psce_activity_qs)
+    sink()
+    ppreview(cre_bc_cpm_ls[[rep]]$violin, file = file.path(output_dir, paste0(rep, ".violin.pdf")))
+    ppreview(cre_bc_cpm_ls[[rep]]$density, file = file.path(output_dir, paste0(rep, ".density.pdf")))
+}
+
+join_df <- full_join(
+    cre_bc_cpm_ls$rep1$psce_df %>%
+        filter(is_active) %>%
+        select(cre, activity, is_active),
+    cre_bc_cpm_ls$rep2$psce_df %>%
+        filter(is_active) %>%
+        select(cre, activity, is_active),
+    by = "cre", suffix = c(".rep1", ".rep2")
+) %>%
+    mutate(both_are_active = if_else(is.na(is_active.rep1), "rep2",
+        if_else(is.na(is_active.rep2), "rep1", "both")
+    )) %>%
+    arrange(both_are_active)
+vroom_write(join_df, file = file.path(output_dir, "rep1_rep2.psce_df.tsv"))
+```
+
+### MPRAnalyze method
+
+```{r}
+library(MPRAnalyze)
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+library(magrittr)
+
+cre_bc_count_file <- "cre_bc_count/cre_barcode_count.tsv"
+output_dir <- "identify_active.MPRAnalyze"
+
+dir.create(output_dir)
+cre_bc_count_df <- vroom(cre_bc_count_file)
+cre_bc_count_df <- pivot_wider(cre_bc_count_df, id_cols = c("rep", "cre", "barcode"), names_from = "type", values_from = "count", values_fill = 0) %>%
+    filter(DNA > 0) %>%
+    group_by(rep, cre) %>%
+    reframe(DNA = sum(DNA), RNA = sum(RNA)) %>%
+    mutate(
+        cre_type = if_else(str_detect(cre, "^PSCE\\d+(_\\d+)?$"), "PSCE",
+            if_else(str_detect(cre, "^CTL\\d+(_\\d+)?"), "CTL", "NA")
+        )
+    )
+dna_count_df <- pivot_wider(cre_bc_count_df, id_cols = c("cre", "cre_type"), names_from = "rep", values_from = "DNA", values_fill = 0) %>%
+    arrange(cre) %>%
+    as.data.frame() %>%
+    set_rownames(.[["cre"]])
+rna_count_df <- pivot_wider(cre_bc_count_df, id_cols = c("cre", "cre_type"), names_from = "rep", values_from = "RNA", values_fill = 0) %>%
+    arrange(cre) %>%
+    as.data.frame() %>%
+    set_rownames(.[["cre"]])
+if (!all(row.names(dna_count_df) == row.names(rna_count_df))) {
+    stop("the row names of DNA are not identical to the row names of RNA")
+}
+
+col_names <- c("rep1", "rep2")
+obj <- MpraObject(
+    dnaCounts = as.matrix(dna_count_df[, col_names]),
+    rnaCounts = as.matrix(rna_count_df[, col_names]),
+    dnaAnnot = data.frame(replicate = col_names, row.names = col_names),
+    rnaAnnot = data.frame(replicate = col_names, row.names = col_names),
+    controls = dna_count_df$cre_type == "CTL"
+)
+obj <- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "dna", depth.estimator = "uq")
+obj <- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "rna", depth.estimator = "uq")
+obj <- analyzeQuantification(obj, dnaDesign = ~replicate, rnaDesign = ~1)
+
+alpha_df <- getAlpha(obj) %>%
+    mutate(
+        cre = row.names(.),
+        cre_type = if_else(str_detect(cre, "^PSCE\\d+(_\\d+)?$"), "PSCE",
+            if_else(str_detect(cre, "^CTL\\d+(_\\d+)?"), "CTL", "NA")
+        ),
+        cre_type = factor(cre_type, levels = c("CTL", "PSCE"))
+    )
+p_violin <- ggplot(alpha_df, aes(
+    cre_type, alpha,
+    fill = cre_type, color = cre_type
+)) +
+    geom_violin(trim = TRUE, scale = "width", alpha = 0.5) +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    labs(x = NULL, y = "Activity") +
+    theme_classic(base_family = "Arial", base_size = 20) +
+    theme(legend.position = "none")
+ppreview(p_violin, file = file.path(output_dir, "alpha.violin.pdf"))
+p_density <- ggplot(alpha_df, aes(alpha, fill = cre_type, color = cre_type)) +
+    geom_density(alpha = 0.1) +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    labs(color = "CRE Type", fill = "CRE Type") +
+    theme_classic(base_size = 20, base_family = "Arial")
+ppreview(p_density, file = file.path(output_dir, "alpha.density.pdf"))
+
+res_df <- testEmpirical(obj, statistic = alpha_df$alpha)
+res_df <- bind_cols(alpha_df, res_df) %>%
+    mutate(
+        pval.empirical.adj = p.adjust(pval.empirical, method = "fdr"),
+        pval.mad.adj = p.adjust(pval.mad, method = "fdr"),
+        pval.zscore.adj = p.adjust(pval.zscore, method = "fdr")
+    ) %>%
+    filter(cre_type == "PSCE") %>%
+    arrange(pval.mad.adj) %>%
+    mutate(is_active = if_else(pval.mad.adj < 0.05, TRUE, FALSE))
+vroom_write(res_df, file = file.path(output_dir, "psce_df.tsv"))
+```
+
+## Peak annotation
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(ggVennDiagram)
+library(YRUtils)
+library(ChIPseeker)
+library(AnnotationDbi)
+library(patchwork)
+
+mpt_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.trna.ercc.phix.gtf.gz.gene_id_name_mapping_table.tsv"
+txdb_file <- "/data/biodatabase/species/mm10/genome/anno/gencode.vM21.primary_assembly.annotation_UCSC_names.TxDb.sqlite"
+mpra_test_file <- "/data/users/dell/mpra/link_barcode_to_cre/enzyme_v20250430/ref/2w_library.165bp.no_enzyme_cutting_sites.dealed.tsv"
+rep1_file <- "identify_active.Q95/rep1.psce_df.tsv"
+rep2_file <- "identify_active.Q95/rep2.psce_df.tsv"
+mpranalyze_file <- "identify_active.MPRAnalyze/psce_df.tsv"
+output_dir <- "identify_active.overlap"
+
+dir.create(output_dir)
+mpt_df <- vroom(mpt_file) %>%
+    dplyr::select(gene_id, gene_name, gene_biotype, gene_version, gene_level)
+txdb <- loadDb(txdb_file)
+mpra_test_df <- vroom(mpra_test_file) %>%
+    dplyr::select(seqname, start, end, PSCE, PSCE_new_id) %>%
+    mutate(id = paste0(seqname, ":", start, "-", end))
+rep1_df <- vroom(rep1_file) %>%
+    filter(is_active) %>%
+    dplyr::select(-rep, -cre_type)
+rep2_df <- vroom(rep2_file) %>%
+    filter(is_active) %>%
+    dplyr::select(-rep, -cre_type)
+mpranalyze_df <- vroom(mpranalyze_file) %>%
+    filter(is_active) %>%
+    dplyr::select(-cre_type)
+names(mpranalyze_df) <- paste0(names(mpranalyze_df), ".mpranalyze")
+
+join_df <- full_join(rep1_df, rep2_df, by = "cre", suffix = c(".rep1", ".rep2")) %>%
+    full_join(mpranalyze_df, by = c("cre" = "cre.mpranalyze")) %>%
+    arrange(pval.mad.adj.mpranalyze) %>%
+    inner_join(mpra_test_df, by = c("cre" = "PSCE_new_id"))
+vroom_write(join_df, file = file.path(output_dir, "overlap.df.tsv"))
+
+ls <- list(rep1 = rep1_df$cre, rep2 = rep2_df$cre, mpranalyze = mpranalyze_df$cre.mpranalyze)
+p_venn <- ggVennDiagram(ls, label_alpha = 0, label = "count", label_size = 12) +
+    scale_fill_gradient(low = "grey90", high = "#FF7256") +
+    xlim(c(-10, 10)) +
+    theme(legend.position = "none")
+ppreview(p_venn, file = file.path(output_dir, "overlap.venn.pdf"))
+
+gr <- join_df[, c("seqname", "start", "end", "cre")] %>%
+    as("GRanges")
+peak_anno <- annotatePeak(gr, tssRegion = c(-3000, 3000), TxDb = txdb)
+
+p_bar <- plotAnnoBar(peak_anno) +
+    labs(title = NULL) +
+    theme(text = element_text(family = "Arial", size = 20))
+ppreview(p_bar, file = file.path(output_dir, "peak_anno.feature_distribution.pdf"))
+
+p_tss <- plotDistToTSS(peak_anno) +
+    labs(title = NULL) +
+    theme(text = element_text(family = "Arial", size = 20))
+ppreview(p_tss, file = file.path(output_dir, "peak_anno.distance_to_tss.pdf"))
+
+peak_anno_df <- as.data.frame(peak_anno) %>%
+    dplyr::select(cre, annotation, geneId, distanceToTSS) %>%
+    inner_join(mpt_df, by = c("geneId" = "gene_id"))
+final_df <- inner_join(join_df, peak_anno_df, by = "cre")
+vroom_write(final_df, file = file.path(output_dir, "overlap.peak_anno.df.tsv"))
+
+gene_list_df <- final_df %>%
+    dplyr::select(gene_name) %>%
+    distinct() %>%
+    mutate(cluster = "active_psce")
+vroom_write(gene_list_df, file.path(output_dir, "overlap.peak_anno.gene_list.df.tsv"))
+```
+
+## Appendix
+
+### Identify active barcodes
+
+#### Extract barcode-sample matrix
+
+```{julia}
+using CSV, DataFrames, YRUtils
+
+extract_valid_barcode_dir = "extract_valid_barcode"
+output_dir = "bc_count"
+
+mkpath(output_dir)
+barcode_count_file_name_pattern = r".+/(?<id>[a-zA-Z0-9]+)_(?<type>RNA|DNA)_(?<rep>rep[0-9]+)\.barcode_count\.(txt|tsv)$"
+barcode_count_files = YRUtils.BioUtils.list_files(extract_valid_barcode_dir, barcode_count_file_name_pattern; recursive=false, full_name=true)
+ms = match.(barcode_count_file_name_pattern, barcode_count_files)
+metadata_vec = Vector{NTuple{4,String}}(undef, length(ms))
+for i in 1:length(ms)
+    metadata_vec[i] = (ms[i].match, ms[i]["id"], ms[i]["type"], ms[i]["rep"])
+end
+df = unique(DataFrame(metadata_vec, [:file, :id, :type, :rep]))
+df = transform(
+    df,
+    [:id, :type, :rep] => ByRow((id, type, rep) -> join([id, type, rep], "_")) => :rep_sample,
+    [:id, :type] => ByRow((id, type) -> join([id, type], "_")) => :type_sample
+)
+CSV.write(joinpath(output_dir, "barcode_count_file_metadata.tsv"), df; header=true, delim="\t", append=false)
+
+bridge_barcode_dict = Dict{String,Dict{String,String}}()
+for row_subdf in eachrow(df)
+    global bridge_barcode_dict
+    barcode_count_df = CSV.read(row_subdf.file, DataFrame; header=true, delim="\t")
+    for barcode in barcode_count_df.barcode
+        global bridge_barcode_dict
+        if haskey(bridge_barcode_dict, barcode)
+            bridge_barcode_dict[barcode][row_subdf.rep_sample] = barcode
+        elseif haskey(bridge_barcode_dict, YRUtils.BioUtils.rev_com_dna_seq(barcode))
+            bridge_barcode_dict[YRUtils.BioUtils.rev_com_dna_seq(barcode)][row_subdf.rep_sample] = barcode
+        else
+            bridge_barcode_dict[barcode] = Dict(k => "" for k in df.rep_sample)
+            bridge_barcode_dict[barcode][row_subdf.rep_sample] = barcode
+        end
+    end
+end
+
+all_barcode_count_df = crossjoin(DataFrame(key_barcode=String[], value_barcode=String[], count=Int64[], CPM=Float64[]), empty(df))
+for row_subdf in eachrow(df)
+    global bridge_barcode_dict
+    barcode_count_df = CSV.read(row_subdf.file, DataFrame; header=true, delim="\t")
+    barcode_count_df.CPM = barcode_count_df.count * 1000000 / sum(barcode_count_df.count)
+    barcode_count_df = crossjoin(barcode_count_df, DataFrame(row_subdf))
+    bridge_barcode_df = DataFrame([(key_barcode=k, value_barcode=v[row_subdf.rep_sample]) for (k, v) in bridge_barcode_dict if v[row_subdf.rep_sample] != ""])
+    barcode_count_df = innerjoin(bridge_barcode_df, barcode_count_df, on=:value_barcode => :barcode)
+    append!(all_barcode_count_df, barcode_count_df; cols=:setequal)
+end
+wide_barcode_count_df = unstack(all_barcode_count_df, :key_barcode, :rep_sample, :count; fill=0)
+filtered_wide_barcode_count_df = filter([:HMC3MPRA_DNA_rep1, :HMC3MPRA_DNA_rep2] => (x, y) -> x > 0 && y > 0, wide_barcode_count_df)
+wide_barcode_cpm_df = unstack(all_barcode_count_df, :key_barcode, :rep_sample, :CPM; fill=0)
+filtered_wide_barcode_cpm_df = filter([:HMC3MPRA_DNA_rep1, :HMC3MPRA_DNA_rep2] => (x, y) -> x > 0 && y > 0, wide_barcode_cpm_df)
+filtered_wide_barcode_cpm_df.rep1_ratio = filtered_wide_barcode_cpm_df.HMC3MPRA_RNA_rep1 ./ filtered_wide_barcode_cpm_df.HMC3MPRA_DNA_rep1
+filtered_wide_barcode_cpm_df.rep2_ratio = filtered_wide_barcode_cpm_df.HMC3MPRA_RNA_rep2 ./ filtered_wide_barcode_cpm_df.HMC3MPRA_DNA_rep2
+
+CSV.write(joinpath(output_dir, "barcode_count.tsv"), all_barcode_count_df; header=true, delim="\t", append=false)
+CSV.write(joinpath(output_dir, "wide_barcode_count.tsv"), wide_barcode_count_df; header=true, delim="\t", append=false)
+CSV.write(joinpath(output_dir, "filtered_wide_barcode_count.tsv"), filtered_wide_barcode_count_df; header=true, delim="\t", append=false)
+CSV.write(joinpath(output_dir, "wide_barcode_cpm.tsv"), wide_barcode_cpm_df; header=true, delim="\t", append=false)
+CSV.write(joinpath(output_dir, "filtered_wide_barcode_cpm.tsv"), filtered_wide_barcode_cpm_df; header=true, delim="\t", append=false)
+YRUtils.ShellUtils.recur_pigz(output_dir, r".+\.tsv$"; recursive=false, pigz_options="")
+```
+
+#### Simple threshold method
+
+```{r}
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+
+cpm_file <- "bc_count/filtered_wide_barcode_cpm.tsv.gz"
+output_dir <- "identify_bc_active.2-fold"
+
+dir.create(output_dir)
+cpm_df <- vroom(cpm_file) %>%
+    select(key_barcode, rep1_ratio, rep2_ratio) %>%
+    rename(Rep1 = rep1_ratio, Rep2 = rep2_ratio) %>%
+    pivot_longer(cols = c("Rep1", "Rep2"), names_to = "Replicate", values_to = "Activity") %>%
+    mutate(log2Activity = log2(Activity + 1))
+
+p_density <- ggplot(cpm_df, aes(log2Activity, fill = Replicate, color = Replicate)) +
+    geom_density(alpha = 0.1) +
+    geom_vline(xintercept = log2(3), linetype = "dashed", color = "grey") +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    scale_x_continuous(expand = expansion(mult = 0.02)) +
+    theme_classic(base_size = 20, base_family = "Arial")
+ppreview(p_density, file = file.path(output_dir, "density.pdf"))
+
+stat_df <- cpm_df %>%
+    mutate(is_active = log2Activity > log2(3)) %>%
+    group_by(Replicate) %>%
+    reframe(n = n(), n_is_active = sum(is_active)) %>%
+    mutate(ratio = n_is_active / n)
+vroom_write(stat_df, file = file.path(output_dir, "stat_df.tsv"))
+```
+
+#### MPRAnalyze method
+
+```{r}
+library(MPRAnalyze)
+library(vroom)
+library(tidyverse)
+library(YRUtils)
+library(magrittr)
+library(BiocParallel)
+
+count_file <- "bc_count/filtered_wide_barcode_count.tsv.gz"
+output_dir <- "identify_bc_active.MPRAnalyze"
+
+dir.create(output_dir)
+count_df <- vroom(count_file)
+dna_count_df <- count_df %>%
+    as.data.frame() %>%
+    set_rownames(.[["key_barcode"]]) %>%
+    select(all_of(c("HMC3MPRA_DNA_rep1", "HMC3MPRA_DNA_rep2")))
+rna_count_df <- count_df %>%
+    as.data.frame() %>%
+    set_rownames(.[["key_barcode"]]) %>%
+    select(all_of(c("HMC3MPRA_RNA_rep1", "HMC3MPRA_RNA_rep2")))
+if (!all(row.names(dna_count_df) == row.names(rna_count_df))) {
+    stop("the row names of DNA are not identical to the row names of RNA")
+}
+
+col_names <- c("rep1", "rep2")
+obj <- MpraObject(
+    dnaCounts = as.matrix(dna_count_df),
+    rnaCounts = as.matrix(rna_count_df),
+    dnaAnnot = data.frame(replicate = col_names, row.names = colnames(dna_count_df)),
+    rnaAnnot = data.frame(replicate = col_names, row.names = colnames(rna_count_df)),
+    BPPARAM = MulticoreParam()
+)
+obj <- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "dna", depth.estimator = "uq")
+obj <- estimateDepthFactors(obj, lib.factor = "replicate", which.lib = "rna", depth.estimator = "uq")
+obj <- analyzeQuantification(obj, dnaDesign = ~replicate, rnaDesign = ~1)
+
+alpha_df <- getAlpha(obj) %>%
+    mutate(
+        barcode = row.names(.),
+        log2Alpha = log2(alpha + 1)
+    )
+p_density <- ggplot(alpha_df, aes(log2Alpha)) +
+    geom_density(alpha = 0.1, fill = "magenta", color = "magenta") +
+    scale_y_continuous(expand = expansion(mult = 0.02)) +
+    scale_x_continuous(expand = expansion(mult = 0.02)) +
+    theme_classic(base_size = 20, base_family = "Arial")
+ppreview(p_density, file = file.path(output_dir, "alpha.density.pdf"))
+
+res_df <- testEmpirical(obj, statistic = alpha_df$alpha)
+res_df <- bind_cols(alpha_df, res_df) %>%
+    mutate(
+        pval.mad.adj = p.adjust(pval.mad, method = "fdr"),
+        pval.zscore.adj = p.adjust(pval.zscore, method = "fdr")
+    ) %>%
+    arrange(pval.mad.adj) %>%
+    mutate(is_active = if_else(pval.mad.adj < 0.05, TRUE, FALSE))
+vroom_write(res_df, file = file.path(output_dir, "df.tsv"))
 ```

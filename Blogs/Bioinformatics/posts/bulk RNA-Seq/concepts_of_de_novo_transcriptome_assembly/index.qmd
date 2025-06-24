@@ -1,0 +1,34 @@
+---
+title: "Concepts of de novo transcriptome assembly"
+author: "Rui Yang"
+date: "2025-06-24"
+date-modified: last-modified
+categories: [de novo transcriptome assembly, rna-seq, trinity]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Introduction
+
+There are several tools which can be used to perform de novo transcriptome assembly, such as Trinity.
+
+Here, we only document some useful wiki pages which describe the de novo transcriptome assembly from vairous aspects, such as how to perform de novo transcriptome assembly with/without guided genome, assembly quality assessment, downstream analyses, etc.:
+
+1. [Trinity wiki page](https://github.com/trinityrnaseq/trinityrnaseq/wiki) and local [archive](./data/trinityrnaseq.wiki.tar.gz)
+
+2. [Bandage wiki page](https://github.com/rrwick/Bandage/wiki) and local [archive](./data/Bandage.wiki.tar.gz)
