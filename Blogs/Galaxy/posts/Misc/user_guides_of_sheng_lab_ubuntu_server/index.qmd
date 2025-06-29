@@ -83,7 +83,7 @@ For data analysis, you can log in to the server using an SSH client, such as Lin
 
 For data storage, you may use an SFTP client to transfer files to/from the server. All authorized users have SFTP transfer permissions.
 
-**Recommended free SFTP clients:** FileZilla (Linux/macOS/Windows), WinSCP (highly recommended for Windows).
+**Recommended free SFTP clients:** FileZilla (Linux/macOS/Windows) from `https://filezilla-project.org`, WinSCP (highly recommended for Windows) from `https://winscp.net/eng/index.php`.
 
 Users with SSH login privileges can also transfer files using commands like `scp`.
 
