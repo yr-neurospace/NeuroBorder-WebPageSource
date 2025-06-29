@@ -1,0 +1,55 @@
+---
+title: "Misc NGS concepts"
+author: "Rui Yang"
+date: "2025-06-24"
+date-modified: last-modified
+categories: [ngs, misc]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## Sequencing depth/coverage
+
+**测序深度：**每碱基被测序的平均次数。
+
+**计算公式：**$\text{Coverage}=\frac{\text{总测序碱基数（bp）}}{\text{目标基因组或转录组大小（bp）}}$。
+
+**例如：**人类基因组大小约 3Gb ($3 \times 10^9$bp)，若测 60Gb 数据，则 $\text{Coverage}=\frac{60 \times 10^9}{3 \times 10^9}=20 \times$。
+
+## Sequencing saturation analysis
+
+**X 轴：**通常为测序深度或累计数据量（如 the number of reads）。
+
+**Y 轴：**
+
+* 反映信息量的捕获效率，如基因检出数、变异检出数等。
+* 评估技术稳定性，如技术重复间的一致性。
+
+**例如：**
+
+* 在转录组测序中，用于表示随着测序深度的增加（累计 reads 数增加），新鉴定的基因或转录本数量的变化关系。
+
+* 在转录组测序中，用于表示随着测序深度的增加（累计 reads 数增加），技术重复间的表达量相关系数的变化关系。
+
+* 在基因组测序中，表示随着测序深度的增加，基因组中被至少覆盖 X 次的碱基所占比例。
+
+* 在基因组测序中，表示随着测序深度的增加，已知变异的检出率。
+
+* 在 scRNA-Seq 中，随着测序深度的增加，单个细胞中检测到的基因数。
+
+* 在 scRNA-Seq 中，随着测序深度的增加，doublets 的比例。

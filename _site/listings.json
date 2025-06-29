@@ -1,7 +1,20 @@
 [
   {
+    "listing": "/Blogs/Galaxy/index.html",
+    "items": [
+      "/Blogs/Galaxy/posts/Misc/user_guides_of_sheng_lab_ubuntu_server/index.html",
+      "/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/index.html",
+      "/Blogs/Galaxy/posts/Shiny/guides_for_neuroborder_shiny_app/index.html"
+    ]
+  },
+  {
     "listing": "/Blogs/Bioinformatics/index.html",
     "items": [
+      "/Blogs/Bioinformatics/posts/Misc/bioinformatics_software_installation_guides/index.html",
+      "/Blogs/Bioinformatics/posts/bulk proteomics/proteomics-related_concepts/index.html",
+      "/Blogs/Bioinformatics/posts/scRNA-seq/concepts_of_single_cell_sequencing/index.html",
+      "/Blogs/Bioinformatics/posts/scRNA-seq/identify_egfp-positive_cells_via_scrna-seq/index.html",
+      "/Blogs/Bioinformatics/posts/Misc/misc_ngs_concepts/index.html",
       "/Blogs/Bioinformatics/posts/bulk RNA-Seq/concepts_of_de_novo_transcriptome_assembly/index.html",
       "/Blogs/Bioinformatics/posts/bulk RNA-Seq/concepts_of_strand-specific_rna-seq/index.html",
       "/Blogs/Bioinformatics/posts/Genomics/deploy_and_run_repeatmodeler_repeatmasker/index.html",
@@ -21,6 +34,7 @@
   {
     "listing": "/Blogs/Computer/index.html",
     "items": [
+      "/Blogs/Computer/posts/OS/Linux/kvm_qemu_virt-manager_tool_chain_for_virtual_machine_managing/index.html",
       "/Blogs/Computer/posts/OS/Windows/windows_cmds/index.html",
       "/Blogs/Computer/posts/OS/Linux/linux_cmds/index.html",
       "/Blogs/Computer/posts/Misc/sticky_notes/index.html",
@@ -34,15 +48,10 @@
     ]
   },
   {
-    "listing": "/Blogs/Galaxy/index.html",
-    "items": [
-      "/Blogs/Galaxy/posts/Galaxy/endcode_rna_seq_pipeline_in_galaxy/index.html",
-      "/Blogs/Galaxy/posts/Shiny/guides_for_neuroborder_shiny_app/index.html"
-    ]
-  },
-  {
     "listing": "/Blogs/Mathematics/index.html",
     "items": [
+      "/Blogs/Mathematics/posts/Probability and Statistics/statistical_significance_measures/index.html",
+      "/Blogs/Mathematics/posts/Probability and Statistics/variance_stablizing_method/index.html",
       "/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_misc/index.html",
       "/Blogs/Mathematics/posts/Probability and Statistics/probability_and_statistics_with_julia/index.html",
       "/Blogs/Mathematics/posts/Probability and Statistics/statistical_inference_concepts_of_binomial_distribution/index.html",

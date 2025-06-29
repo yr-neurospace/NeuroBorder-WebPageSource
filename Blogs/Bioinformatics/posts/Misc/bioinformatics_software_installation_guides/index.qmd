@@ -1,0 +1,26 @@
+---
+title: "Bioinformatics software installation guides"
+author: "Rui Yang"
+date: "2025-06-29"
+date-modified: last-modified
+categories: [software, bioinfomatics]
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: left
+    fig-align: center
+    number-depth: 6
+    number-sections: true
+    fig-cap-location: bottom
+    fig-format: png
+    lightbox: true
+    tbl-cap-location: top
+    page-layout: full
+
+execute:
+  warning: false
+  eval: false
+---
+
+## BAMscale
