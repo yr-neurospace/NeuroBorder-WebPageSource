@@ -10,12 +10,12 @@ website:
   title: "NeuroBorder"
   page-footer:
     center: Powered by [Quarto](https://quarto.org)
-  repo-url: https://github.com/yr-neurospace/NeuroBorder
+  repo-url: https://github.com/yr-neurospace/NeuroBorder-WebPageSource
   repo-actions: [edit, source, issue]
   navbar:
     tools:
       - icon: github
-        href: https://github.com/yr-neurospace/NeuroBorder
+        href: https://github.com/yr-neurospace/NeuroBorder-WebPageSource
     left:
       - text: "Home"
         href: "index.qmd"
