@@ -48,11 +48,11 @@ This document serves as a guide for using the Sheng Lab Ubuntu server to perform
 :::
 
 ::: {.callout-warning title="Warnings"}
--   Do NOT store any system-irrelevant data in the `/` directory.
+-   Do **NOT** store any system-irrelevant data in the `/` directory.
 
 -   User software should be installed in their respective home directories (Miniconda3 is highly recommended for software installations).
 
--   Do NOT store large volumes of data in your home directory. Instead, place them in the `/data` directory, where you should create a subdirectory (e.g., `/data/lihua`), mirroring the structure of the `/home` directory.
+-   Do **NOT** store large volumes of data in your home directory. Instead, place them in the `/data` directory, where you should create a subdirectory (e.g., `/data/lihua`), mirroring the structure of the `/home` directory.
 
 -   All data uploaded via SFTP client will be stored in the `/archive` directory, where each user has their own subdirectory (e.g., `/archive/lihua`), mirroring the structure of the `/home` directory.
 
@@ -104,7 +104,7 @@ The followings are guides for how to install and run both FileZilla and WinSCP:
 
 ![](./figures/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-06-29%20235733.png){.lightbox fig-alt="Click to see a larger version of the image" fig-align="center"}
 
-4.  Select a Destination folder and then click "Next":
+4.  Select a destination folder and then click "Next":
 
 ![](./figures/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-06-29%20235746.png){.lightbox fig-alt="Click to see a larger version of the image" fig-align="center"}
 
